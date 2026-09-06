@@ -1,8 +1,7 @@
-* {
-    box-sizing: border-box;
-}
-
-:root {
+/* =========================
+   SCOPED WRAPPER & RESETS
+========================= */
+.signin-page-wrapper {
     --purple: #6046E8;
     --purple-dark: #5139D1;
     --purple-light: #F2EFFF;
@@ -10,15 +9,7 @@
     --dark: #15203E;
     --text: #5E6A86;
     --border: #E0E3EA;
-}
 
-html {
-    width: 100%;
-    min-height: 100%;
-}
-
-body {
-    margin: 0;
     width: 100%;
     min-height: 100vh;
     font-family: Arial, Helvetica, sans-serif;
@@ -26,16 +17,22 @@ body {
     background: #FFFFFF;
 }
 
-button,
-input {
+.signin-page-wrapper *,
+.signin-page-wrapper *::before,
+.signin-page-wrapper *::after {
+    box-sizing: border-box;
+}
+
+.signin-page-wrapper button,
+.signin-page-wrapper input {
     font-family: inherit;
 }
 
-button {
+.signin-page-wrapper button {
     cursor: pointer;
 }
 
-.container {
+.signin-page-wrapper .container {
     width: 100%;
     min-height: 100vh;
     display: grid;
@@ -45,7 +42,7 @@ button {
 
 /* LEFT PANEL */
 
-.left-panel {
+.signin-page-wrapper .left-panel {
     position: relative;
     min-height: 100vh;
     padding: 42px 60px 300px 70px;
@@ -57,7 +54,7 @@ button {
     overflow: hidden;
 }
 
-.dot-pattern {
+.signin-page-wrapper .dot-pattern {
     position: absolute;
     top: 77px;
     left: 260px;
@@ -73,7 +70,7 @@ button {
     pointer-events: none;
 }
 
-.brand {
+.signin-page-wrapper .brand {
     position: relative;
     z-index: 5;
     display: flex;
@@ -81,7 +78,7 @@ button {
     margin-bottom: 54px;
 }
 
-.brand-logo {
+.signin-page-wrapper .brand-logo {
     width: 60px;
     height: 60px;
     display: flex;
@@ -91,31 +88,31 @@ button {
     margin-right: 10px;
 }
 
-.brand-logo svg {
+.signin-page-wrapper .brand-logo svg {
     width: 60px;
     height: 60px;
 }
 
-.brand-text {
+.signin-page-wrapper .brand-text {
     display: flex;
     flex-direction: column;
 }
 
-.brand-name {
+.signin-page-wrapper .brand-name {
     color: #15203E;
     font-size: 26px;
     font-weight: 700;
     line-height: 1.1;
 }
 
-.brand-tagline {
+.signin-page-wrapper .brand-tagline {
     margin-top: 6px;
     color: #69738E;
     font-size: 14px;
     line-height: 1;
 }
 
-.headline {
+.signin-page-wrapper .headline {
     position: relative;
     z-index: 5;
     max-width: 430px;
@@ -127,14 +124,14 @@ button {
     letter-spacing: -1.5px;
 }
 
-.highlight {
+.signin-page-wrapper .highlight {
     color: #6046E8;
     text-decoration: underline;
     text-decoration-thickness: 2px;
     text-underline-offset: 6px;
 }
 
-.lead-text {
+.signin-page-wrapper .lead-text {
     position: relative;
     z-index: 5;
     max-width: 460px;
@@ -144,14 +141,14 @@ button {
     line-height: 1.7;
 }
 
-.decor {
+.signin-page-wrapper .decor {
     position: absolute;
     color: #B9A9FF;
     pointer-events: none;
     z-index: 2;
 }
 
-.decor-book {
+.signin-page-wrapper .decor-book {
     top: 338px;
     right: 78px;
     width: 34px;
@@ -159,7 +156,7 @@ button {
     opacity: 0.65;
 }
 
-.decor-sparkle {
+.signin-page-wrapper .decor-sparkle {
     top: 238px;
     right: 120px;
     width: 17px;
@@ -169,7 +166,7 @@ button {
 
 /* FEATURES */
 
-.features-plan-row {
+.signin-page-wrapper .features-plan-row {
     position: relative;
     z-index: 10;
     display: flex;
@@ -177,7 +174,7 @@ button {
     width: 100%;
 }
 
-.features-list {
+.signin-page-wrapper .features-list {
     position: relative;
     z-index: 11;
     width: 48%;
@@ -185,7 +182,7 @@ button {
     flex-shrink: 0;
 }
 
-.feature-item {
+.signin-page-wrapper .feature-item {
     position: relative;
     z-index: 11;
     display: flex;
@@ -193,11 +190,11 @@ button {
     margin-bottom: 24px;
 }
 
-.feature-item:last-child {
+.signin-page-wrapper .feature-item:last-child {
     margin-bottom: 0;
 }
 
-.feature-icon {
+.signin-page-wrapper .feature-icon {
     width: 62px;
     height: 62px;
     display: flex;
@@ -212,16 +209,16 @@ button {
     box-shadow: 0 8px 20px rgba(85, 60, 190, 0.08);
 }
 
-.feature-icon svg {
+.signin-page-wrapper .feature-icon svg {
     width: 24px;
     height: 24px;
 }
 
-.feature-text {
+.signin-page-wrapper .feature-text {
     padding-top: 3px;
 }
 
-.feature-text h3 {
+.signin-page-wrapper .feature-text h3 {
     margin: 0 0 7px;
     color: #17213F;
     font-size: 14px;
@@ -229,7 +226,7 @@ button {
     font-weight: 700;
 }
 
-.feature-text p {
+.signin-page-wrapper .feature-text p {
     max-width: 190px;
     margin: 0;
     color: #68738E;
@@ -239,7 +236,7 @@ button {
 
 /* PLAN CARD */
 
-.plan-card {
+.signin-page-wrapper .plan-card {
     position: relative;
     z-index: 12;
     width: 285px;
@@ -252,31 +249,31 @@ button {
     box-shadow: 0 12px 30px rgba(51, 36, 108, 0.12);
 }
 
-.plan-header {
+.signin-page-wrapper .plan-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 19px;
 }
 
-.plan-title {
+.signin-page-wrapper .plan-title {
     color: #17213F;
     font-size: 14px;
     font-weight: 700;
 }
 
-.plan-date {
+.signin-page-wrapper .plan-date {
     color: #8C95A9;
     font-size: 10px;
 }
 
-.plan-item {
+.signin-page-wrapper .plan-item {
     display: flex;
     align-items: flex-start;
     margin-bottom: 16px;
 }
 
-.plan-status {
+.signin-page-wrapper .plan-status {
     width: 30px;
     height: 30px;
     display: flex;
@@ -287,49 +284,49 @@ button {
     border-radius: 50%;
 }
 
-.plan-status svg {
+.signin-page-wrapper .plan-status svg {
     width: 15px;
     height: 15px;
 }
 
-.status-done {
+.signin-page-wrapper .status-done {
     background: #39B96B;
 }
 
-.status-active {
+.signin-page-wrapper .status-active {
     background: #674AE9;
 }
 
-.status-upcoming {
+.signin-page-wrapper .status-upcoming {
     background: #FFFFFF;
     border: 2px solid #DDDCE7;
 }
 
-.plan-item-text {
+.signin-page-wrapper .plan-item-text {
     display: flex;
     flex-direction: column;
     padding-top: 1px;
 }
 
-.plan-item-title {
+.signin-page-wrapper .plan-item-title {
     color: #202942;
     font-size: 12px;
     line-height: 1.4;
     font-weight: 600;
 }
 
-.plan-item-muted {
+.signin-page-wrapper .plan-item-muted {
     color: #69738B;
 }
 
-.plan-item-sub {
+.signin-page-wrapper .plan-item-sub {
     margin-top: 3px;
     color: #9098AA;
     font-size: 10px;
     line-height: 1.4;
 }
 
-.plan-streak {
+.signin-page-wrapper .plan-streak {
     display: flex;
     align-items: center;
     padding-top: 13px;
@@ -339,14 +336,14 @@ button {
     font-weight: 600;
 }
 
-.streak-flame {
+.signin-page-wrapper .streak-flame {
     margin-right: 7px;
     font-size: 16px;
 }
 
 /* STUDENT ILLUSTRATION */
 
-.illustration-wrap {
+.signin-page-wrapper .illustration-wrap {
     position: absolute;
     left: 35px;
     bottom: 5px;
@@ -359,7 +356,7 @@ button {
     pointer-events: none;
 }
 
-.illustration-wrap img {
+.signin-page-wrapper .illustration-wrap img {
     display: block;
     width: 370px;
     height: auto;
@@ -369,14 +366,14 @@ button {
 
 /* RIGHT PANEL */
 
-.right-panel {
+.signin-page-wrapper .right-panel {
     position: relative;
     min-height: 100vh;
     padding: 39px 70px 50px;
     background: #FFFFFF;
 }
 
-.auth-top {
+.signin-page-wrapper .auth-top {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -384,12 +381,12 @@ button {
     margin-bottom: 72px;
 }
 
-.auth-top-text {
+.signin-page-wrapper .auth-top-text {
     color: #6A738A;
     font-size: 13px;
 }
 
-.btn-outline {
+.signin-page-wrapper .btn-outline {
     height: 45px;
     padding: 0 19px;
     border: 1.5px solid #684DF0;
@@ -400,19 +397,19 @@ button {
     font-weight: 600;
 }
 
-.btn-outline:hover {
+.signin-page-wrapper .btn-outline:hover {
     background: #F8F6FF;
 }
 
 /* AUTH CARD */
 
-.auth-card {
+.signin-page-wrapper .auth-card {
     width: 100%;
     max-width: 522px;
     margin: 0 auto;
 }
 
-.auth-heading {
+.signin-page-wrapper .auth-heading {
     display: flex;
     align-items: center;
     margin: 0 0 8px;
@@ -423,12 +420,12 @@ button {
     letter-spacing: -0.8px;
 }
 
-.wave {
+.signin-page-wrapper .wave {
     margin-left: 9px;
     font-size: 27px;
 }
 
-.auth-subtext {
+.signin-page-wrapper .auth-subtext {
     margin: 0 0 35px;
     color: #68738D;
     font-size: 15px;
@@ -436,13 +433,13 @@ button {
 
 /* SOCIAL BUTTONS */
 
-.social-buttons {
+.signin-page-wrapper .social-buttons {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-.btn-social {
+.signin-page-wrapper .btn-social {
     width: 100%;
     height: 51px;
     display: flex;
@@ -456,17 +453,17 @@ button {
     font-weight: 500;
 }
 
-.btn-social:hover {
+.signin-page-wrapper .btn-social:hover {
     background: #FAFAFC;
 }
 
-.icon-google {
+.signin-page-wrapper .icon-google {
     width: 20px;
     height: 20px;
     margin-right: 11px;
 }
 
-.icon-microsoft {
+.signin-page-wrapper .icon-microsoft {
     width: 21px;
     height: 21px;
     margin-right: 11px;
@@ -474,7 +471,7 @@ button {
 
 /* DIVIDER */
 
-.divider {
+.signin-page-wrapper .divider {
     position: relative;
     display: flex;
     align-items: center;
@@ -484,7 +481,7 @@ button {
     font-size: 12px;
 }
 
-.divider::before {
+.signin-page-wrapper .divider::before {
     content: "";
     position: absolute;
     left: 0;
@@ -493,7 +490,7 @@ button {
     background: #E4E6EB;
 }
 
-.divider span {
+.signin-page-wrapper .divider span {
     position: relative;
     z-index: 1;
     padding: 0 14px;
@@ -502,11 +499,11 @@ button {
 
 /* FORM */
 
-.form-group {
+.signin-page-wrapper .form-group {
     margin-bottom: 24px;
 }
 
-.form-group label {
+.signin-page-wrapper .form-group label {
     display: block;
     margin-bottom: 9px;
     color: #18223E;
@@ -514,17 +511,17 @@ button {
     font-weight: 600;
 }
 
-.form-label-row {
+.signin-page-wrapper .form-label-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-.form-label-row label {
+.signin-page-wrapper .form-label-row label {
     margin-bottom: 9px;
 }
 
-.forgot-link {
+.signin-page-wrapper .forgot-link {
     margin-bottom: 9px;
     color: #6349E8;
     font-size: 13px;
@@ -532,16 +529,16 @@ button {
     text-decoration: none;
 }
 
-.forgot-link:hover {
+.signin-page-wrapper .forgot-link:hover {
     text-decoration: underline;
 }
 
-.input-wrap {
+.signin-page-wrapper .input-wrap {
     position: relative;
     width: 100%;
 }
 
-.input-wrap input {
+.signin-page-wrapper .input-wrap input {
     width: 100%;
     height: 51px;
     padding: 0 45px;
@@ -553,15 +550,15 @@ button {
     font-size: 14px;
 }
 
-.input-wrap input:focus {
+.signin-page-wrapper .input-wrap input:focus {
     border-color: #684DEB;
 }
 
-.input-wrap input::placeholder {
+.signin-page-wrapper .input-wrap input::placeholder {
     color: #A0A8B8;
 }
 
-.input-icon {
+.signin-page-wrapper .input-icon {
     position: absolute;
     top: 50%;
     left: 14px;
@@ -572,7 +569,7 @@ button {
     pointer-events: none;
 }
 
-.eye-icon {
+.signin-page-wrapper .eye-icon {
     position: absolute;
     top: 50%;
     right: 14px;
@@ -580,11 +577,12 @@ button {
     height: 19px;
     color: #9AA4B8;
     transform: translateY(-50%);
+    cursor: pointer;
 }
 
 /* CHECKBOX */
 
-.checkbox-row {
+.signin-page-wrapper .checkbox-row {
     display: flex;
     align-items: center;
     margin: 0 0 27px;
@@ -593,7 +591,7 @@ button {
     cursor: pointer;
 }
 
-.checkbox-row input {
+.signin-page-wrapper .checkbox-row input {
     width: 18px;
     height: 18px;
     margin: 0 9px 0 0;
@@ -603,7 +601,7 @@ button {
 
 /* LOGIN BUTTON */
 
-.btn-primary {
+.signin-page-wrapper .btn-primary {
     width: 100%;
     height: 51px;
     border: none;
@@ -619,7 +617,7 @@ button {
     box-shadow: 0 10px 22px rgba(101, 71, 232, 0.22);
 }
 
-.btn-primary:hover {
+.signin-page-wrapper .btn-primary:hover {
     background: linear-gradient(
         90deg,
         #563BD6 0%,
@@ -630,26 +628,25 @@ button {
 /* LARGE SCREENS */
 
 @media (min-width: 1400px) {
-
-    .left-panel {
+    .signin-page-wrapper .left-panel {
         padding-left: 70px;
         padding-right: 60px;
     }
 
-    .headline {
+    .signin-page-wrapper .headline {
         font-size: 49px;
     }
 
-    .illustration-wrap {
+    .signin-page-wrapper .illustration-wrap {
         left: 40px;
         bottom: 5px;
     }
 
-    .illustration-wrap img {
+    .signin-page-wrapper .illustration-wrap img {
         width: 380px;
     }
 
-    .right-panel {
+    .signin-page-wrapper .right-panel {
         padding-left: 85px;
         padding-right: 85px;
     }
@@ -658,62 +655,61 @@ button {
 /* TABLET */
 
 @media (max-width: 1150px) {
-
-    .container {
+    .signin-page-wrapper .container {
         grid-template-columns: 51% 49%;
     }
 
-    .left-panel {
+    .signin-page-wrapper .left-panel {
         padding-left: 40px;
         padding-right: 35px;
     }
 
-    .right-panel {
+    .signin-page-wrapper .right-panel {
         padding-left: 40px;
         padding-right: 40px;
     }
 
-    .headline {
+    .signin-page-wrapper .headline {
         font-size: 40px;
     }
 
-    .lead-text {
+    .signin-page-wrapper .lead-text {
         font-size: 14px;
     }
 
-    .features-plan-row {
+    .signin-page-wrapper .features-plan-row {
         gap: 10px;
     }
 
-    .features-list {
+    .signin-page-wrapper .features-list {
         width: 49%;
     }
 
-    .feature-icon {
+    .signin-page-wrapper .feature-icon {
         width: 52px;
         height: 52px;
     }
 
-    .feature-text p {
+    .signin-page-wrapper .feature-text p {
         max-width: 150px;
         font-size: 11px;
     }
 
-    .plan-card {
+    .signin-page-wrapper .plan-card {
         width: 220px;
         margin-left: 5px;
     }
 
-    .illustration-wrap {
+    .signin-page-wrapper .illustration-wrap {
         left: 15px;
         width: 360px;
     }
 
-    .illustration-wrap img {
+    .signin-page-wrapper .illustration-wrap img {
         width: 335px;
     }
 
-    .auth-card {
+    .signin-page-wrapper .auth-card {
         max-width: 450px;
     }
 }
@@ -721,34 +717,33 @@ button {
 /* TABLET / MOBILE */
 
 @media (max-width: 900px) {
-
-    .container {
+    .signin-page-wrapper .container {
         display: block;
     }
 
-    .left-panel {
+    .signin-page-wrapper .left-panel {
         min-height: 900px;
         padding: 40px 40px 300px;
     }
 
-    .right-panel {
+    .signin-page-wrapper .right-panel {
         min-height: 750px;
         padding: 45px 40px 60px;
     }
 
-    .features-plan-row {
+    .signin-page-wrapper .features-plan-row {
         width: 100%;
     }
 
-    .features-list {
+    .signin-page-wrapper .features-list {
         max-width: 310px;
     }
 
-    .plan-card {
+    .signin-page-wrapper .plan-card {
         width: 250px;
     }
 
-    .illustration-wrap {
+    .signin-page-wrapper .illustration-wrap {
         left: 50%;
         bottom: 0;
         transform: translateX(-50%);
@@ -758,87 +753,86 @@ button {
 /* MOBILE */
 
 @media (max-width: 650px) {
-
-    .left-panel {
+    .signin-page-wrapper .left-panel {
         min-height: 1050px;
         padding: 30px 22px 320px;
     }
 
-    .brand {
+    .signin-page-wrapper .brand {
         margin-bottom: 38px;
     }
 
-    .brand-logo {
+    .signin-page-wrapper .brand-logo {
         width: 50px;
         height: 50px;
     }
 
-    .brand-logo svg {
+    .signin-page-wrapper .brand-logo svg {
         width: 50px;
         height: 50px;
     }
 
-    .brand-name {
+    .signin-page-wrapper .brand-name {
         font-size: 22px;
     }
 
-    .headline {
+    .signin-page-wrapper .headline {
         font-size: 35px;
         letter-spacing: -1px;
     }
 
-    .lead-text {
+    .signin-page-wrapper .lead-text {
         max-width: 100%;
         font-size: 14px;
     }
 
-    .features-plan-row {
+    .signin-page-wrapper .features-plan-row {
         flex-direction: column;
         gap: 25px;
     }
 
-    .features-list {
+    .signin-page-wrapper .features-list {
         width: 100%;
         max-width: 100%;
     }
 
-    .feature-text p {
+    .signin-page-wrapper .feature-text p {
         max-width: 230px;
     }
 
-    .plan-card {
+    .signin-page-wrapper .plan-card {
         width: 100%;
         max-width: 350px;
         margin-left: 0;
     }
 
-    .illustration-wrap {
+    .signin-page-wrapper .illustration-wrap {
         width: 100%;
         height: 245px;
         bottom: 5px;
     }
 
-    .illustration-wrap img {
+    .signin-page-wrapper .illustration-wrap img {
         width: 350px;
     }
 
-    .right-panel {
+    .signin-page-wrapper .right-panel {
         padding: 30px 22px 45px;
     }
 
-    .auth-top {
+    .signin-page-wrapper .auth-top {
         margin-bottom: 45px;
     }
 
-    .auth-heading {
+    .signin-page-wrapper .auth-heading {
         font-size: 27px;
     }
 
-    .auth-subtext {
+    .signin-page-wrapper .auth-subtext {
         font-size: 14px;
     }
 
-    .auth-card {
+    .signin-page-wrapper .auth-card {
         max-width: 100%;
     }
 }
@@ -846,56 +840,55 @@ button {
 /* SMALL MOBILE */
 
 @media (max-width: 430px) {
-
-    .left-panel {
+    .signin-page-wrapper .left-panel {
         min-height: 1000px;
         padding-left: 18px;
         padding-right: 18px;
     }
 
-    .headline {
+    .signin-page-wrapper .headline {
         font-size: 31px;
     }
 
-    .feature-icon {
+    .signin-page-wrapper .feature-icon {
         width: 50px;
         height: 50px;
         margin-right: 11px;
     }
 
-    .feature-text h3 {
+    .signin-page-wrapper .feature-text h3 {
         font-size: 13px;
     }
 
-    .feature-text p {
+    .signin-page-wrapper .feature-text p {
         font-size: 11px;
     }
 
-    .illustration-wrap img {
+    .signin-page-wrapper .illustration-wrap img {
         width: 325px;
     }
 
-    .auth-top {
+    .signin-page-wrapper .auth-top {
         gap: 10px;
     }
 
-    .auth-top-text {
+    .signin-page-wrapper .auth-top-text {
         font-size: 12px;
     }
 
-    .btn-outline {
+    .signin-page-wrapper .btn-outline {
         height: 40px;
         padding: 0 13px;
         font-size: 11px;
     }
 
-    .auth-heading {
+    .signin-page-wrapper .auth-heading {
         font-size: 24px;
     }
 
-    .btn-social,
-    .input-wrap input,
-    .btn-primary {
+    .signin-page-wrapper .btn-social,
+    .signin-page-wrapper .input-wrap input,
+    .signin-page-wrapper .btn-primary {
         height: 48px;
     }
 }
