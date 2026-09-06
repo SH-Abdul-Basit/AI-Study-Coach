@@ -1,54 +1,52 @@
-
 import React, { useEffect, useRef } from "react";
 import "../styles/Landing.css";
+import { useNavigate } from "react-router-dom";
 import bookImage from "../assets/images/book.png";
 
 
 export default function Landing() {
+  const navigate = useNavigate(); // 1. Initialize the navigate hook
+
   const problemSectionRef = useRef(null);
   const featuresSectionRef = useRef(null);
   const workingSectionRef = useRef(null);
+  const scrollToSection = (ref) => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
 
   useEffect(() => {
-    const scrollSections = document.querySelectorAll(".scroll");
+    // 1. Select all elements that need the animation
+    const hiddenElements = document.querySelectorAll('.scroll, .sf-feature-card, .problem-card');
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-          }
-        });
-      },
-      {
-        threshold: 0.15,
-      }
-    );
-
-    scrollSections.forEach((section) => {
-      observer.observe(section);
+    // 2. Create the observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // Replace 'show' with whatever class your CSS uses to make things visible (e.g., 'in-view', 'visible', 'active')
+          entry.target.classList.add('show'); 
+        }
+      });
+    }, {
+      threshold: 0.1, // Triggers when 10% of the element is visible
     });
 
+    // 3. Tell observer to watch each element
+    hiddenElements.forEach((el) => observer.observe(el));
+
+    // 4. Cleanup function (Crucial for React!)
     return () => {
-      observer.disconnect();
+      hiddenElements.forEach((el) => observer.unobserve(el));
     };
   }, []);
 
-  const scrollToSection = (sectionRef) => {
-    if (sectionRef.current) {
-      sectionRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  };
-
+  // 2. Update these functions to use client-side routing instead of window.location.href
   const redirectToSignup = () => {
-    window.location.href = "/sign-up";
+    navigate("/signup"); // Make sure this path matches your Route path in App.jsx
   };
 
   const redirectToLogin = () => {
-    window.location.href = "/sign-in";
+    navigate("/login");
   };
 
   const handleFeaturesClick = (event) => {
