@@ -2,7 +2,25 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, FileText, BrainCircuit, Calendar, Clock, Plus, ArrowLeft, TrendingUp, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserCourses, addCourse as fbAddCourse } from '../firebase/firestore';
+import { getUserCourses, addCourse as fbAddCourse, getMaterials, getQuizHistory, getTopicMastery } from '../firebase/firestore';
+
+const belongsToCourse = (item, course) =>
+  item?.courseId === course.id ||
+  (!item?.courseId && [course.name, course.code].filter(Boolean).some((value) => item?.course === value));
+
+const withCourseMetrics = (courses, materials, quizzes, topics) => courses.map((course) => {
+  const courseTopics = topics.filter((topic) => topic.courseId === course.id);
+  const mastery = courseTopics.length
+    ? Math.round(courseTopics.reduce((sum, topic) => sum + Number(topic.mastery ?? 0), 0) / courseTopics.length)
+    : null;
+  return {
+    ...course,
+    topicMastery: courseTopics,
+    materialCount: materials.filter((material) => belongsToCourse(material, course)).length,
+    quizCount: quizzes.filter((quiz) => quiz.courseId === course.id).length,
+    mastery,
+  };
+});
 
 export default function CoursesPage() {
   const navigate = useNavigate();
@@ -25,12 +43,10 @@ export default function CoursesPage() {
   useEffect(() => {
     async function loadCourses() {
       try {
-        const data = await getUserCourses(user?.uid);
-        if (data && data.length > 0) {
-          setCourses(data);
-        } else {
-          setCourses([]);
-        }
+        const [data, materials, quizzes, topics] = await Promise.all([
+          getUserCourses(user?.uid), getMaterials(user?.uid), getQuizHistory(user?.uid), getTopicMastery(user?.uid),
+        ]);
+        setCourses(withCourseMetrics(data || [], materials || [], quizzes || [], topics || []));
       } catch (err) {
         console.error("Failed to load courses:", err);
         setCourses([]);
@@ -57,18 +73,14 @@ export default function CoursesPage() {
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
       const created = await fbAddCourse(user?.uid, {
         ...newCourse,
-        progress: 10,
         topics: [],
-        materials: 0,
-        quizzesTaken: 0,
         color: randomColor,
-        daysUntilExam: 30,
       });
       if (created.existing) {
         setCourseError('This course is already in your course list.');
         return;
       }
-      setCourses(prev => [created, ...prev]);
+      setCourses(prev => [{ ...created, materialCount: 0, quizCount: 0, mastery: null, topicMastery: [] }, ...prev]);
       setShowAddModal(false);
       setNewCourse({
         name: '',
@@ -88,7 +100,9 @@ export default function CoursesPage() {
 
   if (selectedCourse) {
     // Dynamic Course Detail View
-    const topics = Array.isArray(selectedCourse.topics) ? selectedCourse.topics : [];
+    const topics = selectedCourse.topicMastery?.length
+      ? selectedCourse.topicMastery
+      : Array.isArray(selectedCourse.topics) ? selectedCourse.topics : [];
 
     return (
       <div className="max-w-6xl mx-auto space-y-6">
@@ -115,7 +129,7 @@ export default function CoursesPage() {
               </div>
               <div className="flex gap-2.5 shrink-0">
                 <button 
-                  onClick={() => navigate('/practice')}
+                  onClick={() => navigate('/practice', { state: { courseId: selectedCourse.id } })}
                   className="px-3.5 py-2 bg-white border border-[#ECECF2] text-[#202033] rounded-[8px] text-[12.5px] font-[650] hover:bg-[#FCFCFE] cursor-pointer"
                 >
                   Take Quiz
@@ -141,7 +155,7 @@ export default function CoursesPage() {
                 <Clock className="w-4.5 h-4.5 text-[#FF8A34]" />
                 <div>
                   <div className="text-[11px] text-[#6F7182]">Time Until Exam</div>
-                  <div className="text-[13px] font-[700] text-[#FF8A34]">{selectedCourse.daysUntilExam} days</div>
+                <div className="text-[13px] font-[700] text-[#FF8A34]">{selectedCourse.daysUntilExam != null ? `${selectedCourse.daysUntilExam} days` : 'Not set'}</div>
                 </div>
               </div>
             </div>
@@ -149,12 +163,12 @@ export default function CoursesPage() {
             <div className="mt-5">
               <div className="flex justify-between text-[13px] mb-1.5">
                 <span className="font-[600] text-[#202033]">Overall Progress</span>
-                <span className="font-[700] text-[#6347F5]">{selectedCourse.progress}%</span>
+                <span className="font-[700] text-[#6347F5]">{selectedCourse.progress == null ? '—' : `${selectedCourse.progress}%`}</span>
               </div>
               <div className="w-full bg-[#EEEEF4] rounded-full h-[6px] overflow-hidden">
                 <div 
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${selectedCourse.progress}%`, backgroundColor: selectedCourse.color }}
+                  style={{ width: `${selectedCourse.progress ?? 0}%`, backgroundColor: selectedCourse.color }}
                 ></div>
               </div>
             </div>
@@ -204,7 +218,7 @@ export default function CoursesPage() {
                   <FileText className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-[23px] font-[700] text-[#202033] tracking-[-0.025em]">{selectedCourse.materials}</div>
+              <div className="text-[23px] font-[700] text-[#202033] tracking-[-0.025em]">{selectedCourse.materialCount}</div>
               <div className="text-[12px] text-[#9295A5]">Files analyzed by AI</div>
             </div>
 
@@ -218,7 +232,7 @@ export default function CoursesPage() {
                   <BrainCircuit className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-[23px] font-[700] text-[#202033] tracking-[-0.025em]">{selectedCourse.quizzesTaken}</div>
+              <div className="text-[23px] font-[700] text-[#202033] tracking-[-0.025em]">{selectedCourse.quizCount}</div>
               <div className="text-[12px] text-[#9295A5]">Completed quizzes</div>
             </div>
           </div>
@@ -288,7 +302,7 @@ export default function CoursesPage() {
                     {course.code || 'COURSE'}
                   </span>
                   <span className="text-[10px] font-[600] text-[#FF8A34] bg-[#FFF3EB] px-2 py-0.5 rounded-[6px]">
-                    {course.daysUntilExam || 30} days to {course.examType || 'Exam'}
+                    {course.daysUntilExam != null ? `${course.daysUntilExam} days to ${course.examType || 'Exam'}` : 'Exam date not set'}
                   </span>
                 </div>
                 
@@ -299,24 +313,34 @@ export default function CoursesPage() {
                   <div>
                     <div className="flex justify-between text-[11px] mb-1">
                       <span className="font-[500] text-[#6F7182]">Progress</span>
-                      <span className="font-[700] text-[#202033]">{course.progress || 0}%</span>
+                      <span className="font-[700] text-[#202033]">{course.progress == null ? '—' : `${course.progress}%`}</span>
                     </div>
                     <div className="w-full bg-[#EEEEF4] rounded-full h-[4px] overflow-hidden">
                       <div 
                         className="h-full rounded-full"
-                        style={{ width: `${course.progress || 0}%`, backgroundColor: course.color || '#6347F5' }}
+                        style={{ width: `${course.progress ?? 0}%`, backgroundColor: course.color || '#6347F5' }}
                       ></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="font-[500] text-[#6F7182]">Topic mastery</span>
+                      <span className="font-[700] text-[#18A86B]">{course.mastery == null ? '—' : `${course.mastery}%`}</span>
+                    </div>
+                    <div className="w-full bg-[#EEEEF4] rounded-full h-[4px] overflow-hidden">
+                      <div className="h-full rounded-full bg-[#18A86B]" style={{ width: `${course.mastery ?? 0}%` }}></div>
                     </div>
                   </div>
 
                   <div className="flex justify-between pt-3.5 border-t border-[#ECECF2]">
                     <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
                       <FileText className="w-3.5 h-3.5" />
-                      <span>{course.materials || 0} materials</span>
+                      <span>{course.materialCount} materials</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
                       <BrainCircuit className="w-3.5 h-3.5" />
-                      <span>{course.quizzesTaken || 0} quizzes</span>
+                      <span>{course.quizCount} quizzes</span>
                     </div>
                   </div>
                 </div>

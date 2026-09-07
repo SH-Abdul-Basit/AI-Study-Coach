@@ -52,10 +52,10 @@ export const uploadFile = async (userId, file, folder = "materials") => {
     fileName: cleanFileName,
     size: sizeDisplay,
     type,
+    mimeType: file.type || "application/octet-stream",
     url: objectUrl,
     path: `users/${userId || "student"}/${folder}/${cleanFileName}`,
     lastModified: file.lastModified || Date.now(),
     uploadedAt: new Date().toISOString(),
   };
 };
-

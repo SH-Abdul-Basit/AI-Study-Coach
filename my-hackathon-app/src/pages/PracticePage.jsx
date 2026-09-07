@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Play, 
   ChevronLeft, 
@@ -11,20 +11,26 @@ import {
   BookOpen,
   Award
 } from 'lucide-react';
-import { mockTopicMastery, mockQuizHistory, mockKMapsQuiz } from '../data/mockData';
 import { useStudy } from '../context/StudyContext';
 import { useAuth } from '../context/AuthContext';
-import { getQuizHistory, saveQuizResult as fbSaveQuizResult, getTopicMastery } from '../firebase/firestore';
+import { getQuizHistory, saveQuizResult as fbSaveQuizResult, getTopicMastery, getUserCourses, getStudyPlan, getMaterials, getPastPapers } from '../firebase/firestore';
+import { generatePracticeQuiz } from '../services/gemini';
 
 export default function PracticePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedCourseId = location.state?.courseId;
   const { triggerPlanUpdate } = useStudy();
   const { user } = useAuth();
 
   const [mode, setMode] = useState(1); // 1: Hub, 2: Quiz, 3: Results
   const [activeTab, setActiveTab] = useState('Quick Quiz');
-  const [topicMastery, setTopicMastery] = useState(mockTopicMastery);
-  const [quizHistory, setQuizHistory] = useState(mockQuizHistory);
+  const [topicMastery, setTopicMastery] = useState([]);
+  const [quizHistory, setQuizHistory] = useState([]);
+  const [studentContext, setStudentContext] = useState({});
+  const [currentQuiz, setCurrentQuiz] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
   
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
@@ -32,12 +38,17 @@ export default function PracticePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [history, mastery] = await Promise.all([
+        const [history, mastery, courses, studyPlan, materials, pastPapers] = await Promise.all([
           getQuizHistory(user?.uid),
           getTopicMastery(user?.uid),
+          getUserCourses(user?.uid),
+          getStudyPlan(user?.uid),
+          getMaterials(user?.uid),
+          getPastPapers(user?.uid),
         ]);
-        if (history) setQuizHistory(history);
-        if (mastery) setTopicMastery(mastery);
+        setQuizHistory(history || []);
+        setTopicMastery(mastery || []);
+        setStudentContext({ courses: courses || [], studyPlan: studyPlan || [], topicMastery: mastery || [], quizHistory: history || [], materials: materials || [], pastPapers: pastPapers || [] });
       } catch (err) {
         console.error("Error loading practice data:", err);
       }
@@ -46,8 +57,29 @@ export default function PracticePage() {
   }, [user]);
 
   // --- MODE 1: Practice Hub ---
-  const handleStartQuiz = () => {
-    setMode(2);
+  const handleStartQuiz = async (courseId, requestedTopic) => {
+    if (generating) return;
+    const course = studentContext.courses?.find((item) => item.id === courseId);
+    const courseMaterials = (studentContext.materials || []).filter((material) =>
+      material.courseId === courseId || (!material.courseId && [course?.name, course?.code].filter(Boolean).includes(material.course))
+    );
+    if (!courseMaterials.length) {
+      setError(`Upload material for ${course?.name || 'this course'} first so the AI can generate a relevant quiz.`);
+      return;
+    }
+    setGenerating(true);
+    setError('');
+    try {
+      const weakest = [...topicMastery].sort((a, b) => (a.mastery ?? 0) - (b.mastery ?? 0))[0];
+      const quiz = await generatePracticeQuiz(studentContext, requestedTopic || weakest?.name, courseId);
+      quiz.courseId = courseId;
+      setCurrentQuiz(quiz);
+      setMode(2);
+    } catch (err) {
+      setError(err.message || 'Could not generate a quiz.');
+    } finally {
+      setGenerating(false);
+    }
     setCurrentQuestionIdx(0);
     setSelectedAnswers({});
   };
@@ -85,39 +117,44 @@ export default function PracticePage() {
           ))}
         </div>
 
-        {/* Recommended for You */}
+        {/* Course-specific quiz generation */}
         <section>
-          <h2 className="text-xl font-bold text-[#202033] mb-4">Recommended For You</h2>
+          <h2 className="text-xl font-bold text-[#202033] mb-4">Practice by Course</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {weakTopics.length > 0 ? (
-              weakTopics.map(topic => (
-                <div key={topic.id} className="bg-white p-5 rounded-xl border border-[#ECECF2] shadow-sm flex flex-col justify-between">
+            {studentContext.courses?.length > 0 ? (
+              studentContext.courses.map(course => {
+                const courseTopics = weakTopics.filter((topic) => topic.courseId === course.id);
+                const weakestCourseTopic = courseTopics.sort((a, b) => (a.mastery ?? 0) - (b.mastery ?? 0))[0];
+                return (
+                <div key={course.id} className={`bg-white p-5 rounded-xl border shadow-sm flex flex-col justify-between ${requestedCourseId === course.id ? 'border-[#6347F5] ring-2 ring-[#F0ECFF]' : 'border-[#ECECF2]'}`}>
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-[#202033]">{topic.name}</h3>
-                      <span className="bg-[#EF4444] bg-opacity-10 text-[#EF4444] text-xs font-bold px-2 py-1 rounded-full">High Priority</span>
+                      <h3 className="font-bold text-[#202033]">{course.name}</h3>
+                      <span className="bg-[#F0ECFF] text-[#6347F5] text-xs font-bold px-2 py-1 rounded-full">Course Quiz</span>
                     </div>
                     <div className="flex items-center text-[#6F7182] text-sm mb-4 space-x-4">
-                      <span className="flex items-center"><BookOpen className="w-4 h-4 mr-1" /> 10 questions</span>
-                      <span className="flex items-center"><Clock className="w-4 h-4 mr-1" /> 15 min</span>
+                      <span className="flex items-center"><BookOpen className="w-4 h-4 mr-1" /> AI generated</span>
+                      <span className="flex items-center"><Clock className="w-4 h-4 mr-1" /> Material-based</span>
                     </div>
                     <p className="text-sm text-[#EF4444] flex items-center mb-4">
                       <AlertCircle className="w-4 h-4 mr-1" />
-                      Your mastery is {topic.mastery}%
+                      {weakestCourseTopic ? `Weakest area: ${weakestCourseTopic.name} (${weakestCourseTopic.mastery ?? 0}%)` : 'Uses this course’s uploaded material and quiz history'}
                     </p>
                   </div>
                   <button 
-                    onClick={handleStartQuiz}
+                    onClick={() => handleStartQuiz(course.id, weakestCourseTopic?.name)}
                     className="w-full bg-[#6347F5] hover:bg-[#5035E0] text-white py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
                   >
-                    <Play className="w-4 h-4 mr-2" /> Start Quiz
+                    <Play className="w-4 h-4 mr-2" /> {generating ? 'Generating…' : 'Generate Quiz'}
                   </button>
                 </div>
-              ))
+                );
+              })
             ) : (
               <p className="text-[#6F7182] py-4">No weak topics found for this filter.</p>
             )}
           </div>
+          {error && <p className="mt-3 text-sm text-[#DC2626]">{error}</p>}
         </section>
 
         {/* Quiz History */}
@@ -164,7 +201,7 @@ export default function PracticePage() {
   };
 
   const handleNext = () => {
-    if (currentQuestionIdx < mockKMapsQuiz.questions.length - 1) {
+    if (currentQuiz && currentQuestionIdx < currentQuiz.questions.length - 1) {
       setCurrentQuestionIdx(prev => prev + 1);
     }
   };
@@ -177,21 +214,21 @@ export default function PracticePage() {
 
   const handleSubmit = async () => {
     let correctCount = 0;
-    mockKMapsQuiz.questions.forEach((q, idx) => {
+    currentQuiz.questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.correctAnswer) {
         correctCount++;
       }
     });
-    const totalQ = mockKMapsQuiz.questions.length;
+    const totalQ = currentQuiz.questions.length;
     const score = Math.round((correctCount / totalQ) * 100);
 
     try {
       const saved = await fbSaveQuizResult(user?.uid, {
-        topic: mockKMapsQuiz.topic,
+        topic: currentQuiz.topic,
         score,
         total: totalQ,
         correct: correctCount,
-        courseId: mockKMapsQuiz.courseId || 'c1',
+        courseId: currentQuiz.courseId,
       });
       if (saved) {
         setQuizHistory(prev => [saved, ...prev.filter(h => h.id !== saved.id)]);
@@ -204,15 +241,15 @@ export default function PracticePage() {
   };
 
   const renderActiveQuiz = () => {
-    const question = mockKMapsQuiz.questions[currentQuestionIdx];
-    const totalQ = mockKMapsQuiz.questions.length;
+    const question = currentQuiz.questions[currentQuestionIdx];
+    const totalQ = currentQuiz.questions.length;
     const progress = ((currentQuestionIdx + 1) / totalQ) * 100;
 
     return (
       <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-200">
         <header className="flex justify-between items-center bg-white p-4 rounded-xl border border-[#ECECF2] shadow-sm">
           <div>
-            <h2 className="text-xl font-bold text-[#202033]">{mockKMapsQuiz.topic} Quiz</h2>
+            <h2 className="text-xl font-bold text-[#202033]">{currentQuiz.topic} Quiz</h2>
             <p className="text-sm text-[#6F7182]">Question {currentQuestionIdx + 1} of {totalQ}</p>
           </div>
           <button 
@@ -296,7 +333,7 @@ export default function PracticePage() {
     const weakQuestions = [];
     const strongQuestions = [];
 
-    mockKMapsQuiz.questions.forEach((q, idx) => {
+    currentQuiz.questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.correctAnswer) {
         correctCount++;
         strongQuestions.push(q);
@@ -305,11 +342,11 @@ export default function PracticePage() {
       }
     });
 
-    const totalQ = mockKMapsQuiz.questions.length;
+    const totalQ = currentQuiz.questions.length;
     const score = Math.round((correctCount / totalQ) * 100);
 
     const handleUpdatePlan = () => {
-      triggerPlanUpdate({ score, topic: mockKMapsQuiz.topic });
+      triggerPlanUpdate({ score, topic: currentQuiz.topic });
       navigate('/study-plan');
     };
 
@@ -327,15 +364,15 @@ export default function PracticePage() {
               <AlertCircle className="w-5 h-5 mr-2" /> AI Coach Recommendation
             </h3>
             <p className="text-[#202033] text-sm">
-              {score < 60 
-                ? "You're struggling with some core concepts of K-Maps. I highly recommend updating your study plan to include a targeted revision session before attempting more quizzes." 
-                : "Great job! You have a solid grasp of K-Maps. Keep practicing to maintain this mastery level."}
+              {score < 60
+                ? `Your ${currentQuiz.topic} score suggests you need targeted revision. Review the supplied material, then retry this topic.`
+                : `You demonstrated solid understanding of ${currentQuiz.topic}. Keep practicing to maintain this progress.`}
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-4">
             <button 
-              onClick={() => handleStartQuiz()}
+              onClick={() => setMode(1)}
               className="px-6 py-2 rounded-lg font-medium text-[#6F7182] bg-white border border-[#ECECF2] hover:bg-[#FCFCFE] transition-colors"
             >
               Practice Weak Areas
@@ -359,7 +396,7 @@ export default function PracticePage() {
         <div className="space-y-6">
           <h2 className="text-2xl font-bold text-[#202033]">Question Breakdown</h2>
           
-          {mockKMapsQuiz.questions.map((q, idx) => {
+          {currentQuiz.questions.map((q, idx) => {
             const isCorrect = selectedAnswers[idx] === q.correctAnswer;
             const userAnswer = q.options[selectedAnswers[idx]];
             const correctAnswer = q.options[q.correctAnswer];

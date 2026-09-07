@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown, Menu, LogOut, Settings } from 'lucide-react';
+import { Bell, ChevronDown, Menu, LogOut, Settings } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,12 +36,6 @@ export default function Header() {
       </div>
 
       <div className="header-tools">
-        <label className="search-box">
-          <Search size={15} aria-hidden="true" />
-          <input type="text" placeholder="Search anything..." aria-label="Search" />
-          <kbd>Ctrl /</kbd>
-        </label>
-
         <button className="header-icon-btn notification-btn" type="button" aria-label="Notifications">
           <Bell size={16} />
           <span className="notification-dot">3</span>

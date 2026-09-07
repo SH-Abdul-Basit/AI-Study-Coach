@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Upload, FileText, Presentation, File, LayoutList, ClipboardList, CheckCircle, Clock, X } from 'lucide-react';
-import { mockMaterials } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { getMaterials, addMaterial as fbAddMaterial, getUserCourses } from '../firebase/firestore';
 import { uploadFile } from '../firebase/storage';
@@ -20,11 +19,12 @@ const TABS = ['All', 'Lecture Slides', 'Notes', 'Syllabus', 'Assignment', 'Past 
 
 export default function MaterialsPage() {
   const { user } = useAuth();
-  const [materials, setMaterials] = useState(mockMaterials);
+  const [materials, setMaterials] = useState([]);
   const [courses, setCourses] = useState([]);
   const [activeTab, setActiveTab] = useState('All');
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -33,12 +33,9 @@ export default function MaterialsPage() {
           getMaterials(user?.uid),
           getUserCourses(user?.uid)
         ]);
-        if (stored && stored.length > 0) {
-          setMaterials(stored);
-        }
-        if (userCourses && userCourses.length > 0) {
-          setCourses(userCourses);
-        }
+        setMaterials(stored || []);
+        setCourses(userCourses || []);
+        setSelectedCourseId(userCourses?.[0]?.id || '');
       } catch (err) {
         console.error("Failed to load materials:", err);
       }
@@ -60,12 +57,14 @@ export default function MaterialsPage() {
       if (file.name.toLowerCase().includes('assign')) type = 'Assignment';
       if (file.name.toLowerCase().includes('paper') || file.name.toLowerCase().includes('exam')) type = 'Past Paper';
 
-      const defaultCourse = courses.length > 0 ? (courses[0].code || courses[0].name) : 'General';
+      const selectedCourse = courses.find((course) => course.id === selectedCourseId);
+      if (!selectedCourse) throw new Error('Choose a course before uploading material.');
 
       const newRecord = await fbAddMaterial(user?.uid, {
         name: file.name,
         type,
-        course: defaultCourse,
+        courseId: selectedCourse.id,
+        course: selectedCourse.code || selectedCourse.name,
         size: uploadRes.size,
         url: uploadRes.url,
       });
@@ -111,9 +110,19 @@ export default function MaterialsPage() {
           <Upload className="w-10 h-10 text-[#6347F5] mb-3" />
           <h3 className="text-[15px] font-[700] text-[#202033] mb-1">Drag and drop your files here</h3>
           <p className="text-[#6F7182] text-[12px] mb-4">Supported formats: PDF, DOCX, PPTX, TXT (Max 50MB)</p>
-          <label className="bg-white text-[#6347F5] border border-[#6347F5] px-4 py-2 rounded-[8px] text-[12px] font-[700] cursor-pointer hover:bg-[#F0ECFF] transition-colors shadow-xs">
-            Browse Files
-            <input type="file" className="hidden" />
+          {courses.length > 0 ? (
+            <select
+              value={selectedCourseId}
+              onChange={(event) => setSelectedCourseId(event.target.value)}
+              className="mt-4 w-full max-w-sm border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] text-[#202033] bg-white"
+              aria-label="Course for this material"
+            >
+              {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
+            </select>
+          ) : <p className="mt-4 text-[12px] text-[#DC2626]">Add a course before uploading material.</p>}
+          <label className="mt-4 bg-white text-[#6347F5] border border-[#6347F5] px-4 py-2 rounded-[8px] text-[12px] font-[700] cursor-pointer hover:bg-[#F0ECFF] transition-colors shadow-xs">
+            {uploading ? 'Uploading…' : 'Browse Files'}
+            <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading || !selectedCourseId} />
           </label>
         </div>
       )}

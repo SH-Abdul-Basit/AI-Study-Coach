@@ -297,77 +297,17 @@ export const saveOnboardingData = async (userId, onboarding) => {
         ? words.map((w) => w[0]?.toUpperCase()).join("").slice(0, 4)
         : subjectClean.slice(0, 4).toUpperCase();
 
-    const initialTopics = [
-      {
-        id: "t_fund",
-        name: `${subjectClean} Fundamentals`,
-        order: 1,
-        status: "completed",
-        mastery: 75,
-        trend: "up",
-        needsRevision: false,
-      },
-      {
-        id: "t_core",
-        name: "Core Principles & Concepts",
-        order: 2,
-        status: "in-progress",
-        mastery: 45,
-        trend: "stable",
-        needsRevision: false,
-      },
-      {
-        id: "t_adv",
-        name: "Advanced Applications & Problem Solving",
-        order: 3,
-        status: "pending",
-        mastery: 0,
-        trend: "stable",
-        needsRevision: false,
-      },
-      {
-        id: "t_exam",
-        name: "Exam Preparation & Past Papers",
-        order: 4,
-        status: "pending",
-        mastery: 0,
-        trend: "stable",
-        needsRevision: false,
-      },
-    ];
-
-    // Compute target exam date 35 days in future
-    const examTarget = new Date();
-    examTarget.setDate(examTarget.getDate() + 35);
-    const examDateStr = getLocalDateString(examTarget);
-
     const createdCourse = await addCourse(userId, {
       name: subjectClean,
       code,
       teacher: onboarding.professor || "Instructor",
-      progress: 15,
       currentStage: "In Progress",
       currentTopic: `${subjectClean} Fundamentals`,
-      examDate: examDateStr,
-      examType: "Final",
-      daysUntilExam: 35,
-      topics: initialTopics,
+      topics: [],
       materials: onboarding.files ? onboarding.files.length : 0,
-      quizzesTaken: 0,
       color: "#6347F5",
     });
 
-    // 3. Save initial topics to topicMastery subcollection
-    try {
-      for (const t of initialTopics) {
-        await addTopicMastery(userId, {
-          courseId: createdCourse.id,
-          ...t,
-        });
-      }
-    } catch (err) {
-      console.warn("[Firestore] Non-blocking notice saving initial topic mastery:", err);
-    }
   }
 
   // 4. Save uploaded study materials metadata directly to Firestore
@@ -502,13 +442,8 @@ export const addCourse = async (userId, courseData) => {
   if (existingLocal) return { ...existingLocal, existing: true };
   const newCourse = {
     id: `course_${courseKey || Date.now()}`,
-    progress: 10,
-    topics: 4,
-    materials: 0,
-    quizzesTaken: 0,
+    topics: [],
     color: "#6347F5",
-    daysUntilExam: 30,
-    currentStage: "In Progress",
     ...courseData,
     createdAt: new Date().toISOString(),
   };

@@ -4,7 +4,7 @@ import "../styles/dashboard.css";
 
 import { useStudy } from "../context/StudyContext";
 import { useAuth } from "../context/AuthContext";
-import { getUserCourses, getStudyPlan, getQuizHistory, getLocalDateString } from "../firebase/firestore";
+import { getUserCourses, getStudyPlan, getQuizHistory, getTopicMastery, getLocalDateString } from "../firebase/firestore";
 import { askStudyCoach } from "../services/gemini";
 
 import QuickActionsCard from "../components/common/QuickActions";
@@ -76,6 +76,7 @@ export default function Dashboard() {
   const [courses, setCourses] = useState([]);
   const [studyPlanDays, setStudyPlanDays] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
+  const [topicMastery, setTopicMastery] = useState([]);
 
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -86,14 +87,16 @@ export default function Dashboard() {
     async function loadDashboardData() {
       if (!user?.uid) return;
       try {
-        const [c, p, q] = await Promise.all([
+        const [c, p, q, t] = await Promise.all([
           getUserCourses(user.uid),
           getStudyPlan(user.uid),
           getQuizHistory(user.uid),
+          getTopicMastery(user.uid),
         ]);
         if (c && c.length > 0) setCourses(c);
         if (p && p.length > 0) setStudyPlanDays(p);
         if (q && q.length > 0) setQuizzes(q);
+        if (t && t.length > 0) setTopicMastery(t);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       }
@@ -116,11 +119,13 @@ export default function Dashboard() {
   const firstName = displayName.split(" ")[0] || "Student";
 
   const subjects = courses.length > 0
-    ? courses.slice(0, 4).map((c) => ({
-        id: c.id,
-        name: c.name,
-        mastery: c.progress || 0,
-      }))
+    ? courses.slice(0, 4).map((c) => {
+        const courseTopics = topicMastery.filter((topic) => topic.courseId === c.id);
+        const mastery = courseTopics.length
+          ? Math.round(courseTopics.reduce((sum, topic) => sum + Number(topic.mastery ?? 0), 0) / courseTopics.length)
+          : c.progress ?? null;
+        return { id: c.id, name: c.name, mastery };
+      })
     : [];
 
   const dynamicDeadlines = courses.length > 0 && courses.some((c) => c.examDate)
@@ -316,7 +321,7 @@ export default function Dashboard() {
               {subjects.length === 0 ? (
                 <p className="empty-dashboard-state">Add a course to start tracking your progress.</p>
               ) : subjects.map((subject, index) => {
-                const mastery = subject.mastery ?? subject.progress ?? 0;
+                const mastery = subject.mastery;
                 return (
                   <div className="subject-row" key={subject.id || index}>
                     <div className={`subject-icon subject-${index}`}>
@@ -326,8 +331,8 @@ export default function Dashboard() {
                       {index === 3 && <TrendingUp size={14} />}
                     </div>
                     <span className="subject-name">{subject.name}</span>
-                    <div className="subject-bar"><span style={{ width: `${mastery}%` }} /></div>
-                    <span className="subject-percent">{mastery}%</span>
+                    <div className="subject-bar"><span style={{ width: `${mastery ?? 0}%` }} /></div>
+                    <span className="subject-percent">{mastery == null ? '—' : `${mastery}%`}</span>
                   </div>
                 );
               })}

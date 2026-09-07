@@ -1,9 +1,8 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Home, CalendarDays, BookOpen,
   Brain, TrendingUp, FolderOpen, Settings,
-  MessageSquare, Flame, Star, GraduationCap, Archive
+  MessageSquare, Flame, GraduationCap, Archive
 } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
 import { useAuth } from '../../context/AuthContext';
@@ -80,11 +79,6 @@ export default function Sidebar() {
           </div>
         </section>
 
-        <section className="premium-card">
-          <div className="premium-title"><Star size={15} fill="currentColor" /> Unlock Premium</div>
-          <p>Get unlimited AI chats, past papers &amp; smart insights.</p>
-          <button type="button">Upgrade Now</button>
-        </section>
       </div>
     </aside>
   );
