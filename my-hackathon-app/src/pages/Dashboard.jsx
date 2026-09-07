@@ -11,6 +11,8 @@ import {
   mockProgressStats,
 } from "../data/mockData";
 
+import QuickActionsCard from "../components/common/QuickActions";
+
 import {
   Play,
   ArrowRight,
@@ -119,8 +121,6 @@ export default function Dashboard() {
     }, 600);
   };
 
-  const useQuickReply = (text) => setMessage(text);
-
   const fallbackTasks = [
     { id: 1, topic: "Variables in C++", type: "Review notes", duration: "20 min", status: "completed" },
     { id: 2, topic: "Functions & Parameters", type: "Practice 10 questions", duration: "30 min", status: "in-progress" },
@@ -221,47 +221,51 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* TODAY'S STUDY PLAN */}
-        <div className="card study-plan-card">
-          <div className="card-header compact">
-            <h2>Today's Study Plan</h2>
-            <button className="date-control">
-              <span>15 May, 2025</span>
-              <Calendar size={15} />
+        {/* TODAY'S STUDY PLAN + QUICK ACTIONS */}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: "14px" }}>
+          <div className="card study-plan-card" style={{ margin: 0 }}>
+            <div className="card-header compact">
+              <h2>Today's Study Plan</h2>
+              <button className="date-control">
+                <span>15 May, 2025</span>
+                <Calendar size={15} />
+              </button>
+            </div>
+
+            <div className="study-rows">
+              {todayTasks.map((task, index) => {
+                const status =
+                  task.status === "completed" ? "completed" : task.status === "in-progress" ? "in-progress" : "pending";
+                return (
+                  <div className="study-row" key={task.id || index}>
+                    <div className="study-status-wrap">
+                      <div className={`status-circle ${status}`}>
+                        {status === "completed" && <CheckCircle2 size={16} />}
+                        {status === "in-progress" && <ArrowRight size={16} />}
+                        {status === "pending" && <Circle size={27} strokeWidth={1.7} />}
+                      </div>
+                      {index < todayTasks.length - 1 && <span className="timeline-line" />}
+                    </div>
+                    <div className="study-copy">
+                      <h3>{task.topic}</h3>
+                      <p>{task.type || "Practice"} • {task.duration || "20 min"}</p>
+                    </div>
+                    <span className={`study-badge ${status}`}>
+                      {status === "completed" ? "Completed" : status === "in-progress" ? "In Progress" : "Pending"}
+                    </span>
+                    <ChevronRight size={16} className="study-arrow" />
+                  </div>
+                );
+              })}
+            </div>
+
+            <button className="full-plan-btn" onClick={() => navigate("/study-plan")}>
+              View Full Plan
+              <ArrowRight size={14} />
             </button>
           </div>
 
-          <div className="study-rows">
-            {todayTasks.map((task, index) => {
-              const status =
-                task.status === "completed" ? "completed" : task.status === "in-progress" ? "in-progress" : "pending";
-              return (
-                <div className="study-row" key={task.id || index}>
-                  <div className="study-status-wrap">
-                    <div className={`status-circle ${status}`}>
-                      {status === "completed" && <CheckCircle2 size={16} />}
-                      {status === "in-progress" && <ArrowRight size={16} />}
-                      {status === "pending" && <Circle size={27} strokeWidth={1.7} />}
-                    </div>
-                    {index < todayTasks.length - 1 && <span className="timeline-line" />}
-                  </div>
-                  <div className="study-copy">
-                    <h3>{task.topic}</h3>
-                    <p>{task.type || "Practice"} • {task.duration || "20 min"}</p>
-                  </div>
-                  <span className={`study-badge ${status}`}>
-                    {status === "completed" ? "Completed" : status === "in-progress" ? "In Progress" : "Pending"}
-                  </span>
-                  <ChevronRight size={16} className="study-arrow" />
-                </div>
-              );
-            })}
-          </div>
-
-          <button className="full-plan-btn" onClick={() => navigate("/study-plan")}>
-            View Full Plan
-            <ArrowRight size={14} />
-          </button>
+          <QuickActionsCard />
         </div>
 
         {/* SUBJECTS + WEEKLY PROGRESS */}
@@ -403,12 +407,6 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
-
-          <div className="quick-replies">
-            <button onClick={() => useQuickReply("Give me an example")}>Give me an example</button>
-            <button onClick={() => useQuickReply("Make it even simpler")}>Make it even simpler</button>
-            <button onClick={() => useQuickReply("Give me related practice questions")}>Related practice questions</button>
           </div>
 
           <div className="ai-input-wrap">
