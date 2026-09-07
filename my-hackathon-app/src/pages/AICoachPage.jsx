@@ -78,7 +78,9 @@ export default function AICoachPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-6xl mx-auto card overflow-hidden">
+    // Full-bleed container: fills the entire content area (width + height) like ChatGPT,
+    // instead of being boxed into a centered "card". No max-width, no mx-auto, no card class.
+    <div className="flex flex-col h-[calc(100vh-100px)] w-full bg-white overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-[#ECECF2] p-5 shrink-0 flex items-center justify-between">
         <div>
@@ -96,80 +98,83 @@ export default function AICoachPage() {
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-[#FCFCFE]">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex max-w-[82%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
+      {/* Chat Area — background spans full width, message column stays a comfortable
+          reading width and is centered, same proportions ChatGPT uses */}
+      <div className="flex-1 overflow-y-auto bg-[#FCFCFE]">
+        <div className="max-w-3xl mx-auto p-6 space-y-5">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex max-w-[82%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} gap-3`}>
 
-              {/* Avatar */}
-              <div className="shrink-0 mt-0.5">
-                {msg.role === 'assistant' ? (
-                  <div className="w-8 h-8 bg-[#EEEAFE] text-[#6347F5] rounded-full flex items-center justify-center shadow-sm">
-                    <Bot className="w-4.5 h-4.5" />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 bg-[#6347F5] text-white rounded-full flex items-center justify-center shadow-sm">
-                    <User className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-
-              {/* Message Bubble */}
-              <div className="flex flex-col gap-1">
-                {msg.role === 'assistant' && (
-                  <span className="text-[11px] font-[600] text-[#9295A5] ml-1">Study Coach</span>
-                )}
-                <div className={`p-3.5 rounded-[10px] text-[13px] leading-[1.45] whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-[#6347F5] text-white rounded-tr-none'
-                    : 'bg-white text-[#202033] border border-[#ECECF2] rounded-tl-none shadow-sm'
-                }`}>
-                  {msg.text}
+                {/* Avatar */}
+                <div className="shrink-0 mt-0.5">
+                  {msg.role === 'assistant' ? (
+                    <div className="w-8 h-8 bg-[#EEEAFE] text-[#6347F5] rounded-full flex items-center justify-center shadow-sm">
+                      <Bot className="w-4.5 h-4.5" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 bg-[#6347F5] text-white rounded-full flex items-center justify-center shadow-sm">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
                 </div>
 
-                {/* Sources */}
-                {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-2 ml-1">
-                    <div className="text-[11px] font-[500] text-[#9295A5] mb-1.5 flex items-center gap-1">
-                      <BookOpen className="w-3.5 h-3.5" />
-                      Based on your material:
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {msg.sources.map((source, sIdx) => (
-                        <span key={sIdx} className="text-[10px] bg-[#F0ECFF] text-[#6347F5] px-2 py-0.5 rounded-[6px] font-[600] border border-[#EEEAFE]">
-                          {source}
-                        </span>
-                      ))}
-                    </div>
+                {/* Message Bubble */}
+                <div className="flex flex-col gap-1">
+                  {msg.role === 'assistant' && (
+                    <span className="text-[11px] font-[600] text-[#9295A5] ml-1">Study Coach</span>
+                  )}
+                  <div className={`p-3.5 rounded-[10px] text-[13px] leading-[1.45] whitespace-pre-wrap ${
+                    msg.role === 'user'
+                      ? 'bg-[#6347F5] text-white rounded-tr-none'
+                      : 'bg-white text-[#202033] border border-[#ECECF2] rounded-tl-none shadow-sm'
+                  }`}>
+                    {msg.text}
                   </div>
-                )}
-              </div>
 
-            </div>
-          </div>
-        ))}
+                  {/* Sources */}
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-2 ml-1">
+                      <div className="text-[11px] font-[500] text-[#9295A5] mb-1.5 flex items-center gap-1">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Based on your material:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {msg.sources.map((source, sIdx) => (
+                          <span key={sIdx} className="text-[10px] bg-[#F0ECFF] text-[#6347F5] px-2 py-0.5 rounded-[6px] font-[600] border border-[#EEEAFE]">
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="flex gap-3">
-              <div className="w-8 h-8 bg-[#EEEAFE] text-[#6347F5] rounded-full flex items-center justify-center shadow-sm shrink-0">
-                <Bot className="w-4.5 h-4.5" />
-              </div>
-              <div className="bg-white border border-[#ECECF2] rounded-[10px] rounded-tl-none p-3 shadow-sm flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce"></div>
-                <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          ))}
+
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 bg-[#EEEAFE] text-[#6347F5] rounded-full flex items-center justify-center shadow-sm shrink-0">
+                  <Bot className="w-4.5 h-4.5" />
+                </div>
+                <div className="bg-white border border-[#ECECF2] rounded-[10px] rounded-tl-none p-3 shadow-sm flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1.5 h-1.5 bg-[#9295A5] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Suggested Prompts */}
+      {/* Suggested Prompts — background spans full width, inner row aligned to same column */}
       <div className="px-5 py-2.5 border-t border-[#ECECF2] bg-white overflow-x-auto whitespace-nowrap scrollbar-hide">
-        <div className="flex gap-2">
+        <div className="flex gap-2 max-w-3xl mx-auto">
           {mockSuggestedPrompts.map((prompt, idx) => (
             <button
               key={idx}
@@ -182,9 +187,9 @@ export default function AICoachPage() {
         </div>
       </div>
 
-      {/* Input Area */}
+      {/* Input Area — background spans full width, input bar aligned to same column */}
       <div className="p-4 bg-white border-t border-[#ECECF2]">
-        <div className="flex gap-2 max-w-4xl mx-auto">
+        <div className="flex gap-2 max-w-3xl mx-auto">
           <input
             type="text"
             value={input}
