@@ -1,43 +1,89 @@
-import React, { useState } from 'react';
-import { Settings, User, Book, Bell, AlertTriangle, Save, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, User, Book, Bell, AlertTriangle, Save, Check, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { mockUser } from '../data/mockData';
 
 export default function SettingsPage() {
+  const { user, userProfile, updateProfileData, logout } = useAuth();
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState({
-    fullName: mockUser.fullName,
-    email: mockUser.email,
-    university: mockUser.university,
-    program: mockUser.program,
-    semester: mockUser.semester,
+    fullName: userProfile?.fullName || mockUser.fullName,
+    email: userProfile?.email || user?.email || mockUser.email,
+    university: userProfile?.university || mockUser.university,
+    program: userProfile?.program || mockUser.program,
+    semester: userProfile?.semester || mockUser.semester,
+    avatarUrl: userProfile?.avatarUrl || user?.photoURL || mockUser.avatarUrl,
   });
 
   const [studyPrefs, setStudyPrefs] = useState({
-    dailyStudyTime: mockUser.studyPreferences.dailyStudyTime,
-    preferredTime: mockUser.studyPreferences.preferredTime,
-    studyGoal: mockUser.studyPreferences.studyGoal,
+    dailyStudyTime: userProfile?.studyPreferences?.dailyStudyTime || mockUser.studyPreferences.dailyStudyTime,
+    preferredTime: userProfile?.studyPreferences?.preferredTime || mockUser.studyPreferences.preferredTime,
+    studyGoal: userProfile?.studyPreferences?.studyGoal || mockUser.studyPreferences.studyGoal,
   });
 
   const [notifications, setNotifications] = useState({
-    studyReminders: true,
-    quizRecommendations: true,
-    planUpdates: false,
+    studyReminders: userProfile?.notifications?.studyReminders ?? true,
+    quizRecommendations: userProfile?.notifications?.quizRecommendations ?? true,
+    planUpdates: userProfile?.notifications?.planUpdates ?? false,
   });
+
+  useEffect(() => {
+    if (userProfile) {
+      setProfile({
+        fullName: userProfile.fullName || mockUser.fullName,
+        email: userProfile.email || user?.email || mockUser.email,
+        university: userProfile.university || mockUser.university,
+        program: userProfile.program || mockUser.program,
+        semester: userProfile.semester || mockUser.semester,
+        avatarUrl: userProfile.avatarUrl || user?.photoURL || mockUser.avatarUrl,
+      });
+      if (userProfile.studyPreferences) {
+        setStudyPrefs({
+          dailyStudyTime: userProfile.studyPreferences.dailyStudyTime || '4 hours',
+          preferredTime: userProfile.studyPreferences.preferredTime || 'Evening (6–10 PM)',
+          studyGoal: userProfile.studyPreferences.studyGoal || 'Score above 80% in finals',
+        });
+      }
+      if (userProfile.notifications) {
+        setNotifications({
+          studyReminders: userProfile.notifications.studyReminders ?? true,
+          quizRecommendations: userProfile.notifications.quizRecommendations ?? true,
+          planUpdates: userProfile.notifications.planUpdates ?? false,
+        });
+      }
+    }
+  }, [userProfile, user]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      await updateProfileData({
+        ...profile,
+        studyPreferences: studyPrefs,
+        notifications: notifications,
+      });
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    }, 800);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleProfileChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
   const handleStudyPrefsChange = (e) => setStudyPrefs({ ...studyPrefs, [e.target.name]: e.target.value });
   const toggleNotification = (key) => setNotifications({ ...notifications, [key]: !notifications[key] });
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 relative">
@@ -58,8 +104,17 @@ export default function SettingsPage() {
           
           <div className="flex flex-col sm:flex-row gap-8 mb-2">
             <div className="shrink-0 flex flex-col items-center">
-              <img src={mockUser.avatarUrl} alt="Profile" className="w-20 h-20 rounded-full border-4 border-[#F0ECFF] mb-3 object-cover shadow-xs" />
-              <button className="text-[12px] text-[#6347F5] font-[650] hover:underline cursor-pointer">Change Avatar</button>
+              <img src={profile.avatarUrl || mockUser.avatarUrl} alt="Profile" className="w-20 h-20 rounded-full border-4 border-[#F0ECFF] mb-3 object-cover shadow-xs" />
+              <button
+                type="button"
+                onClick={() => {
+                  const newSeed = Math.random().toString(36).substring(7);
+                  setProfile(prev => ({ ...prev, avatarUrl: `https://i.pravatar.cc/150?u=${newSeed}` }));
+                }}
+                className="text-[12px] text-[#6347F5] font-[650] hover:underline cursor-pointer"
+              >
+                Change Avatar
+              </button>
             </div>
             
             <div className="grow grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,10 +211,20 @@ export default function SettingsPage() {
             <AlertTriangle className="w-4.5 h-4.5 text-[#EF4444]" />
             <h2 className="text-[15px] font-[700] text-[#EF4444]">Danger Zone</h2>
           </div>
-          <p className="text-[12px] text-[#6F7182] mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-          <button disabled className="px-4 py-2 bg-white border border-red-200 text-[#EF4444] rounded-[8px] text-[12px] font-[600] opacity-50 cursor-not-allowed">
-            Delete Account
-          </button>
+          <p className="text-[12px] text-[#6F7182] mb-4">Manage your account session or permanently remove your data.</p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-[#ECECF2] hover:bg-[#FEE2E2] hover:text-[#EF4444] text-[#202033] rounded-[8px] text-[12px] font-[650] cursor-pointer transition-colors"
+            >
+              <LogOut className="w-4 h-4 text-[#EF4444]" />
+              Sign Out
+            </button>
+            <button disabled className="px-4 py-2 bg-white border border-red-200 text-[#EF4444] rounded-[8px] text-[12px] font-[600] opacity-50 cursor-not-allowed">
+              Delete Account
+            </button>
+          </div>
         </section>
 
         {/* Save Actions */}

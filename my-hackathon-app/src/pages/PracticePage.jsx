@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, 
@@ -13,16 +13,37 @@ import {
 } from 'lucide-react';
 import { mockTopicMastery, mockQuizHistory, mockKMapsQuiz } from '../data/mockData';
 import { useStudy } from '../context/StudyContext';
+import { useAuth } from '../context/AuthContext';
+import { getQuizHistory, saveQuizResult as fbSaveQuizResult, getTopicMastery } from '../firebase/firestore';
 
 export default function PracticePage() {
   const navigate = useNavigate();
   const { triggerPlanUpdate } = useStudy();
+  const { user } = useAuth();
 
   const [mode, setMode] = useState(1); // 1: Hub, 2: Quiz, 3: Results
   const [activeTab, setActiveTab] = useState('Quick Quiz');
+  const [topicMastery, setTopicMastery] = useState(mockTopicMastery);
+  const [quizHistory, setQuizHistory] = useState(mockQuizHistory);
   
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [history, mastery] = await Promise.all([
+          getQuizHistory(user?.uid),
+          getTopicMastery(user?.uid),
+        ]);
+        if (history) setQuizHistory(history);
+        if (mastery) setTopicMastery(mastery);
+      } catch (err) {
+        console.error("Error loading practice data:", err);
+      }
+    }
+    loadData();
+  }, [user]);
 
   // --- MODE 1: Practice Hub ---
   const handleStartQuiz = () => {
@@ -35,9 +56,9 @@ export default function PracticePage() {
     const tabs = ['Quick Quiz', 'Topic Practice', 'Weak Areas', 'Exam Simulation'];
     
     // Filter logic based on tabs
-    let weakTopics = mockTopicMastery.filter(t => t.mastery < 60);
+    let weakTopics = topicMastery.filter(t => t.mastery < 60);
     if (activeTab === 'Weak Areas') {
-      weakTopics = mockTopicMastery.filter(t => t.mastery < 50);
+      weakTopics = topicMastery.filter(t => t.mastery < 50);
     }
 
     return (
@@ -113,7 +134,7 @@ export default function PracticePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ECECF2]">
-                  {mockQuizHistory.map(history => (
+                  {quizHistory.map(history => (
                     <tr key={history.id}>
                       <td className="px-6 py-4 font-medium text-[#202033]">{history.topic}</td>
                       <td className="px-6 py-4 text-[#6F7182]">{new Date(history.date).toLocaleDateString()}</td>
@@ -154,7 +175,31 @@ export default function PracticePage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    let correctCount = 0;
+    mockKMapsQuiz.questions.forEach((q, idx) => {
+      if (selectedAnswers[idx] === q.correctAnswer) {
+        correctCount++;
+      }
+    });
+    const totalQ = mockKMapsQuiz.questions.length;
+    const score = Math.round((correctCount / totalQ) * 100);
+
+    try {
+      const saved = await fbSaveQuizResult(user?.uid, {
+        topic: mockKMapsQuiz.topic,
+        score,
+        total: totalQ,
+        correct: correctCount,
+        courseId: mockKMapsQuiz.courseId || 'c1',
+      });
+      if (saved) {
+        setQuizHistory(prev => [saved, ...prev.filter(h => h.id !== saved.id)]);
+      }
+    } catch (err) {
+      console.error("Error saving quiz result:", err);
+    }
+
     setMode(3);
   };
 

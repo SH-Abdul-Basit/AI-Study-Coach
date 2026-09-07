@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStudy } from '../context/StudyContext';
+import { useAuth } from '../context/AuthContext';
+import { getStudyPlan, updateTaskStatus as fbUpdateTaskStatus } from '../firebase/firestore';
 import { mockStudyPlan, mockCourses, mockProgressStats, mockPlanChanges } from '../data/mockData';
 import { 
   Calendar, 
@@ -15,8 +17,23 @@ import {
 
 export default function StudyPlanPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const dldCourse = mockCourses.find(c => c.code === 'DLD');
   const [plan, setPlan] = useState(mockStudyPlan);
+
+  useEffect(() => {
+    async function loadPlan() {
+      try {
+        const savedPlan = await getStudyPlan(user?.uid);
+        if (savedPlan && savedPlan.length > 0) {
+          setPlan(savedPlan);
+        }
+      } catch (err) {
+        console.error("Failed to load study plan from Firestore:", err);
+      }
+    }
+    loadPlan();
+  }, [user]);
 
   const toggleTask = (dayIndex, taskId) => {
     setPlan(prevPlan => {
@@ -25,11 +42,14 @@ export default function StudyPlanPage() {
       const taskIndex = dayTasks.findIndex(t => t.id === taskId);
       
       if (taskIndex !== -1) {
+        const newStatus = dayTasks[taskIndex].status === 'completed' ? 'not-started' : 'completed';
         dayTasks[taskIndex] = {
           ...dayTasks[taskIndex],
-          status: dayTasks[taskIndex].status === 'completed' ? 'not-started' : 'completed'
+          status: newStatus,
         };
         newPlan[dayIndex].tasks = dayTasks;
+        // Persist to Firestore asynchronously
+        fbUpdateTaskStatus(user?.uid, dayIndex, taskId, newStatus);
       }
       return newPlan;
     });

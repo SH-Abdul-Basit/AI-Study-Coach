@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Upload, FileText, Presentation, File, LayoutList, ClipboardList, CheckCircle, Clock, X } from 'lucide-react';
 import { mockMaterials } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { getMaterials, addMaterial as fbAddMaterial } from '../firebase/firestore';
+import { uploadFile } from '../firebase/storage';
 
 const getFileIcon = (type) => {
   switch (type) {
@@ -16,16 +19,64 @@ const getFileIcon = (type) => {
 const TABS = ['All', 'Lecture Slides', 'Notes', 'Syllabus', 'Assignment', 'Past Paper'];
 
 export default function MaterialsPage() {
+  const { user } = useAuth();
+  const [materials, setMaterials] = useState(mockMaterials);
   const [activeTab, setActiveTab] = useState('All');
   const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const stored = await getMaterials(user?.uid);
+        if (stored && stored.length > 0) {
+          setMaterials(stored);
+        }
+      } catch (err) {
+        console.error("Failed to load materials:", err);
+      }
+    }
+    load();
+  }, [user]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const uploadRes = await uploadFile(user?.uid, file, 'materials');
+      const ext = file.name.split('.').pop().toLowerCase();
+      let type = 'Notes';
+      if (['ppt', 'pptx'].includes(ext)) type = 'Lecture Slides';
+      if (file.name.toLowerCase().includes('syllabus')) type = 'Syllabus';
+      if (file.name.toLowerCase().includes('assign')) type = 'Assignment';
+      if (file.name.toLowerCase().includes('paper') || file.name.toLowerCase().includes('exam')) type = 'Past Paper';
+
+      const newRecord = await fbAddMaterial(user?.uid, {
+        name: file.name,
+        type,
+        course: 'DLD',
+        size: uploadRes.size,
+        url: uploadRes.url,
+      });
+
+      setMaterials(prev => [newRecord, ...prev]);
+      setShowUpload(false);
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const filteredMaterials = activeTab === 'All' 
-    ? mockMaterials 
-    : mockMaterials.filter(m => m.type === activeTab);
+    ? materials 
+    : materials.filter(m => m.type === activeTab);
 
   const getCount = (tab) => {
-    if (tab === 'All') return mockMaterials.length;
-    return mockMaterials.filter(m => m.type === tab).length;
+    if (tab === 'All') return materials.length;
+    return materials.filter(m => m.type === tab).length;
   };
 
   return (

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
 import { Activity, Clock, Target, CheckCircle, TrendingUp, BrainCircuit, AlertCircle, Sparkles, BookOpen } from 'lucide-react';
 import { mockProgressStats, mockTopicMastery, mockQuizTrend, mockWeeklyStudy, mockCoachInsights } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { getProgressStats } from '../firebase/firestore';
 
 const getInsightIcon = (type) => {
   switch (type) {
@@ -33,6 +35,23 @@ const getMasteryColor = (status) => {
 };
 
 export default function ProgressPage() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(mockProgressStats);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const stored = await getProgressStats(user?.uid);
+        if (stored) {
+          setStats(stored);
+        }
+      } catch (err) {
+        console.error("Error loading progress stats:", err);
+      }
+    }
+    loadStats();
+  }, [user]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -44,12 +63,12 @@ export default function ProgressPage() {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <StatCard title="Overall Progress" value={`${mockProgressStats.overallProgress}%`} icon={<Target className="w-4 h-4 text-[#6347F5]" />} />
-        <StatCard title="Study Streak" value={`${mockProgressStats.studyStreak} days`} icon={<Activity className="w-4 h-4 text-[#FF8A34]" />} />
-        <StatCard title="Hours This Week" value={`${mockProgressStats.totalHoursThisWeek}h`} icon={<Clock className="w-4 h-4 text-[#6347F5]" />} />
-        <StatCard title="Topics Mastered" value={`${mockProgressStats.topicsMastered}/${mockProgressStats.totalTopics}`} icon={<BookOpen className="w-4 h-4 text-[#18A86B]" />} />
-        <StatCard title="Quiz Average" value={`${mockProgressStats.quizAverage}%`} icon={<BrainCircuit className="w-4 h-4 text-[#6347F5]" />} />
-        <StatCard title="Plan Completion" value={`${mockProgressStats.planCompletion}%`} icon={<CheckCircle className="w-4 h-4 text-[#18A86B]" />} />
+        <StatCard title="Overall Progress" value={`${stats.overallProgress}%`} icon={<Target className="w-4 h-4 text-[#6347F5]" />} />
+        <StatCard title="Study Streak" value={`${stats.studyStreak} days`} icon={<Activity className="w-4 h-4 text-[#FF8A34]" />} />
+        <StatCard title="Hours This Week" value={`${stats.totalHoursThisWeek}h`} icon={<Clock className="w-4 h-4 text-[#6347F5]" />} />
+        <StatCard title="Topics Mastered" value={`${stats.topicsMastered}/${stats.totalTopics}`} icon={<BookOpen className="w-4 h-4 text-[#18A86B]" />} />
+        <StatCard title="Quiz Average" value={`${stats.quizAverage}%`} icon={<BrainCircuit className="w-4 h-4 text-[#6347F5]" />} />
+        <StatCard title="Plan Completion" value={`${stats.planCompletion}%`} icon={<CheckCircle className="w-4 h-4 text-[#18A86B]" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

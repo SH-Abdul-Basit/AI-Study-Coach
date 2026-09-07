@@ -1,16 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, FileText, BrainCircuit, Calendar, Clock, Plus, ArrowLeft, TrendingUp, X } from 'lucide-react';
 import { mockCourses, mockTopicMastery } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { getUserCourses, addCourse as fbAddCourse } from '../firebase/firestore';
 
 export default function CoursesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [courses, setCourses] = useState(mockCourses);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [newCourse, setNewCourse] = useState({
+    name: '',
+    code: '',
+    semester: '',
+    teacher: '',
+    examDate: '',
+    examType: 'Final',
+  });
 
-  const handleAddCourse = (e) => {
+  useEffect(() => {
+    async function loadCourses() {
+      try {
+        const data = await getUserCourses(user?.uid);
+        if (data && data.length > 0) {
+          setCourses(data);
+        }
+      } catch (err) {
+        console.error("Failed to load courses:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCourses();
+  }, [user]);
+
+  const handleAddCourse = async (e) => {
     e.preventDefault();
-    setShowAddModal(false);
+    try {
+      const colors = ['#6347F5', '#18A86B', '#FF8A34', '#05A6F0', '#E03A3A'];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      const created = await fbAddCourse(user?.uid, {
+        ...newCourse,
+        progress: 0,
+        topics: 6,
+        materials: 0,
+        quizzesTaken: 0,
+        color: randomColor,
+        daysUntilExam: 30,
+      });
+      setCourses(prev => [created, ...prev]);
+      setShowAddModal(false);
+      setNewCourse({
+        name: '',
+        code: '',
+        semester: '',
+        teacher: '',
+        examDate: '',
+        examType: 'Final',
+      });
+    } catch (err) {
+      console.error("Failed to add course:", err);
+      setShowAddModal(false);
+    }
   };
 
   if (selectedCourse) {
@@ -175,7 +229,7 @@ export default function CoursesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockCourses.map(course => (
+        {courses.map(course => (
           <div 
             key={course.id} 
             onClick={() => setSelectedCourse(course)}
@@ -239,30 +293,68 @@ export default function CoursesPage() {
             <form onSubmit={handleAddCourse} className="p-5 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[12px] font-[600] text-[#202033] mb-1">Course Name</label>
-                <input type="text" required placeholder="e.g. Artificial Intelligence" className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]" />
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Artificial Intelligence"
+                  value={newCourse.name}
+                  onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
+                  className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[12px] font-[600] text-[#202033] mb-1">Course Code</label>
-                  <input type="text" required placeholder="e.g. AI-301" className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. AI-301"
+                    value={newCourse.code}
+                    onChange={(e) => setNewCourse({ ...newCourse, code: e.target.value })}
+                    className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                  />
                 </div>
                 <div>
                   <label className="block text-[12px] font-[600] text-[#202033] mb-1">Semester</label>
-                  <input type="text" required placeholder="e.g. 5th" className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 5th"
+                    value={newCourse.semester}
+                    onChange={(e) => setNewCourse({ ...newCourse, semester: e.target.value })}
+                    className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-[12px] font-[600] text-[#202033] mb-1">Teacher</label>
-                <input type="text" required placeholder="Instructor name" className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Instructor name"
+                  value={newCourse.teacher}
+                  onChange={(e) => setNewCourse({ ...newCourse, teacher: e.target.value })}
+                  className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[12px] font-[600] text-[#202033] mb-1">Exam Date</label>
-                  <input type="date" required className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]" />
+                  <input
+                    type="date"
+                    required
+                    value={newCourse.examDate}
+                    onChange={(e) => setNewCourse({ ...newCourse, examDate: e.target.value })}
+                    className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                  />
                 </div>
                 <div>
                   <label className="block text-[12px] font-[600] text-[#202033] mb-1">Exam Type</label>
-                  <select className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]">
+                  <select
+                    value={newCourse.examType}
+                    onChange={(e) => setNewCourse({ ...newCourse, examType: e.target.value })}
+                    className="w-full border border-[#ECECF2] rounded-[8px] px-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-[#6347F5] bg-[#FCFCFE] text-[#202033]"
+                  >
                     <option>Midterm</option>
                     <option>Final</option>
                     <option>Quiz</option>

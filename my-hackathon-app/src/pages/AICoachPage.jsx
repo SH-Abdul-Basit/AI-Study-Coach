@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, User, Send, Sparkles, BookOpen } from 'lucide-react';
 import { mockCoachMessages, mockSuggestedPrompts } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { getChatMessages, saveChatMessage } from '../firebase/firestore';
 
 const mockResponses = [
   {
@@ -22,11 +24,26 @@ const mockResponses = [
 ];
 
 export default function AICoachPage() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState(mockCoachMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const [responseIndex, setResponseIndex] = useState(0);
+
+  useEffect(() => {
+    async function loadChat() {
+      try {
+        const stored = await getChatMessages(user?.uid);
+        if (stored && stored.length > 0) {
+          setMessages(stored);
+        }
+      } catch (err) {
+        console.error("Error loading chat messages:", err);
+      }
+    }
+    loadChat();
+  }, [user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,19 +53,27 @@ export default function AICoachPage() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = (text) => {
+  const handleSend = async (text) => {
     if (!text.trim()) return;
 
-    const newMessages = [...messages, { role: 'user', text, sources: [] }];
+    const userMsg = { role: 'user', text, sources: [] };
+    const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
+    // Save user message to Firestore
+    saveChatMessage(user?.uid, userMsg);
+
+    setTimeout(async () => {
       const response = mockResponses[responseIndex % mockResponses.length];
       setResponseIndex(prev => prev + 1);
-      setMessages([...newMessages, { role: 'assistant', text: response.text, sources: response.sources }]);
+      const assistantMsg = { role: 'assistant', text: response.text, sources: response.sources };
+      setMessages([...newMessages, assistantMsg]);
       setIsTyping(false);
+
+      // Save assistant message to Firestore
+      saveChatMessage(user?.uid, assistantMsg);
     }, 800);
   };
 

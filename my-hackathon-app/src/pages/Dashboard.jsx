@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../styles/dashboard.css";
 
 import { useStudy } from "../context/StudyContext";
+import { useAuth } from "../context/AuthContext";
 
 import {
   mockUser,
@@ -95,9 +96,10 @@ export default function Dashboard() {
     },
   ]);
 
+  const { user, userProfile } = useAuth();
   const completedTasks = mockTodayPlan?.filter((task) => task.status === "completed").length || 0;
   const totalTasks = mockTodayPlan?.length || 0;
-  const userName = mockUser?.name || "Ali";
+  const userName = userProfile?.name || userProfile?.fullName || user?.displayName || mockUser?.name || "Ali";
   const firstName = userName.split(" ")[0];
 
   const sendMessage = () => {

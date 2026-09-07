@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import '../styles/sign-up.css';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
 export default function StudyCoachSignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [generalError, setGeneralError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
   const [formData, setFormData] = useState({
     fullName: '',
     university: '',
@@ -13,6 +20,7 @@ export default function StudyCoachSignUp() {
     terms: false,
   });
   const navigate = useNavigate(); 
+  const { loginWithGoogle, signUpWithEmail } = useAuth();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -20,13 +28,65 @@ export default function StudyCoachSignUp() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    // Clear field error on change
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
-const handleSubmit = (e) => {
-  e.preventDefault();
-  // ...your validation logic here...
-  // if everything is valid:
-  navigate('/questainaire');
-};
+
+  const handleGoogleSignUp = async () => {
+    setGeneralError('');
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+      navigate('/questainaire');
+    } catch (err) {
+      console.error("Google sign-up failed:", err);
+      setGeneralError(err.message || 'Failed to sign up with Google.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setGeneralError('');
+    const errors = {};
+
+    if (!formData.fullName.trim()) errors.fullName = 'Please enter your full name.';
+    if (!formData.university) errors.university = 'Please select your university.';
+    if (!formData.email.trim() || !formData.email.includes('@')) errors.email = 'Please enter a valid email address.';
+    if (!formData.password || formData.password.length < 6) errors.password = 'Password must be at least 6 characters.';
+    if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match.';
+    if (!formData.terms) errors.terms = 'You must agree to the Terms of Service.';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signUpWithEmail({
+        fullName: formData.fullName,
+        university: formData.university,
+        email: formData.email,
+        password: formData.password,
+      });
+      navigate('/questainaire');
+    } catch (err) {
+      console.error("Sign-up failed:", err);
+      if (err.code === 'auth/email-already-in-use') {
+        setGeneralError('An account with this email already exists. Please log in instead.');
+      } else if (err.code === 'auth/weak-password') {
+        setGeneralError('Password is too weak. Please use a stronger password.');
+      } else {
+        setGeneralError(err.message || 'Failed to create account. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     /* 1. The wrapper goes exactly here, wrapping your main container */
     <div className="signup-page-wrapper"> 
@@ -132,11 +192,27 @@ const handleSubmit = (e) => {
             </div>
 
             <div className="social-row">
-              <button type="button" className="social-btn" id="googleButton">
-                <span className="google-g">G</span>
-                Sign up with Google
+              <button
+                type="button"
+                className="social-btn"
+                id="googleButton"
+                onClick={handleGoogleSignUp}
+                disabled={loading || googleLoading}
+                style={{ cursor: loading || googleLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {googleLoading ? (
+                  <div style={{ width: '16px', height: '16px', border: '2px solid #6347F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '6px' }} />
+                ) : (
+                  <span className="google-g">G</span>
+                )}
+                {googleLoading ? "Signing up with Google..." : "Sign up with Google"}
               </button>
-              <button type="button" className="social-btn" id="microsoftButton">
+              <button
+                type="button"
+                className="social-btn"
+                id="microsoftButton"
+                onClick={() => setGeneralError('Microsoft Sign-In will be available soon. Please use Google or Email.')}
+              >
                 <span className="ms-logo"><i></i><i></i><i></i><i></i></span>
                 Sign up with Microsoft
               </button>
@@ -146,6 +222,21 @@ const handleSubmit = (e) => {
               <span></span><b>or</b><span></span>
             </div>
 
+            {generalError && (
+              <div style={{
+                background: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                color: '#DC2626',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                marginBottom: '14px',
+                lineHeight: '1.4'
+              }}>
+                {generalError}
+              </div>
+            )}
+
             <form id="signupForm" noValidate onSubmit={handleSubmit}>
               <div className="field">
                 <label htmlFor="fullName">Full Name</label>
@@ -153,7 +244,7 @@ const handleSubmit = (e) => {
                   <span className="field-icon user-icon"></span>
                   <input id="fullName" name="fullName" type="text" value={formData.fullName} onChange={handleChange} placeholder="Enter your full name" autoComplete="name" />
                 </div>
-                <small className="error" id="fullNameError"></small>
+                {fieldErrors.fullName && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.fullName}</small>}
               </div>
 
               <div className="field">
@@ -173,7 +264,7 @@ const handleSubmit = (e) => {
                   </select>
                   <span className="chevron"></span>
                 </div>
-                <small className="error" id="universityError"></small>
+                {fieldErrors.university && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.university}</small>}
               </div>
 
               <div className="field">
@@ -182,23 +273,23 @@ const handleSubmit = (e) => {
                   <span className="field-icon mail-icon"></span>
                   <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" autoComplete="email" />
                 </div>
-                <small className="error" id="emailError"></small>
+                {fieldErrors.email && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.email}</small>}
               </div>
 
               <div className="field password-field">
                 <label htmlFor="password">Password</label>
                 <div className="input-box">
                   <span className="field-icon lock-icon"></span>
-                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={handleChange} placeholder="Create a password" autoComplete="new-password" />
+                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={handleChange} placeholder="Create a password (min. 6 characters)" autoComplete="new-password" />
                   <button className="eye" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}></button>
                 </div>
 
                 <div className="requirements">
-                  <span id="reqLength"><i>✓</i> At least 8 characters</span>
-                  <span id="reqNumber"><i>✓</i> One number</span>
-                  <span id="reqSpecial"><i>✓</i> One special character</span>
+                  <span id="reqLength" style={{ color: formData.password.length >= 6 ? '#10B981' : '#6F7182' }}><i>✓</i> At least 6 characters</span>
+                  <span id="reqNumber" style={{ color: /\d/.test(formData.password) ? '#10B981' : '#6F7182' }}><i>✓</i> One number</span>
+                  <span id="reqSpecial" style={{ color: /[^A-Za-z0-9]/.test(formData.password) ? '#10B981' : '#6F7182' }}><i>✓</i> One special character</span>
                 </div>
-                <small className="error" id="passwordError"></small>
+                {fieldErrors.password && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.password}</small>}
               </div>
 
               <div className="field">
@@ -208,7 +299,7 @@ const handleSubmit = (e) => {
                   <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" />
                   <button className="eye" type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide password" : "Show password"}></button>
                 </div>
-                <small className="error" id="confirmPasswordError"></small>
+                {fieldErrors.confirmPassword && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.confirmPassword}</small>}
               </div>
 
               <div className="terms-wrap">
@@ -217,12 +308,12 @@ const handleSubmit = (e) => {
                   <span className="fake-checkbox"></span>
                   <span>I agree to the <a href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.</span>
                 </label>
-                <small className="error" id="termsError"></small>
+                {fieldErrors.terms && <small className="error" style={{ display: 'block', color: '#EF4444' }}>{fieldErrors.terms}</small>}
               </div>
 
-             <button id="submitBtn" className="create-btn" type="submit">
-  Create Account
-</button>
+              <button id="submitBtn" className="create-btn" type="submit" disabled={loading || googleLoading}>
+                {loading ? "Creating Account..." : "Create Account"}
+              </button>
 
               <div className="free-note">
                 <span className="shield">♥</span> Free for students. No credit card required.

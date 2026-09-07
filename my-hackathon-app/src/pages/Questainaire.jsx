@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/questionaire.css';
+import { useAuth } from '../context/AuthContext';
+import { saveOnboardingData } from '../firebase/firestore';
+import { uploadFile } from '../firebase/storage';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const ALLOWED_TYPES = ['.pdf', '.doc', '.docx', '.ppt', '.pptx'];
@@ -103,25 +106,40 @@ export default function OnboardingQuestionnaire() {
   };
  
   const navigate = useNavigate();
+  const { user, reloadProfile } = useAuth();
 
   const submitOnboardingData = async () => {
-    const formData = new FormData();
-    formData.append('semester', answers.semester);
-    formData.append('subject', answers.subject);
-    formData.append('professor', answers.professor);
-    files.forEach((file) => formData.append('files', file));
-
     setSubmitting(true);
     try {
-      await sendToBackend(formData);
+      const userId = user?.uid || 'demo-student-ali';
+      const uploadedFiles = [];
+      for (const file of files) {
+        try {
+          const res = await uploadFile(userId, file, 'materials');
+          uploadedFiles.push(res);
+        } catch (e) {
+          console.warn("File upload notice:", e);
+        }
+      }
+
+      await saveOnboardingData(userId, {
+        semester: answers.semester,
+        subject: answers.subject,
+        professor: answers.professor,
+        files: uploadedFiles,
+      });
+
+      if (reloadProfile) {
+        await reloadProfile();
+      }
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Failed to save onboarding data:', err);
       navigate('/dashboard');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const sendToBackend = async (formData) => {
-    console.log('Ready to send onboarding data', formData);
   };
 
   const handleContinue = async () => {

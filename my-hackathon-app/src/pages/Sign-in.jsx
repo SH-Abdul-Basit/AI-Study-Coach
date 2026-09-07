@@ -1,10 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import '../styles/sign-in.css';
 import { useNavigate } from 'react-router-dom';
-import boyImage from "../assets/images/bacha.png"; // 1. Fixed relative import path
+import boyImage from "../assets/images/bacha.png";
+import { useAuth } from '../context/AuthContext';
 
 const StudyCoachSignIn = () => {
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
+    const { loginWithGoogle, loginWithEmail } = useAuth();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [remember, setRemember] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleGoogleSignIn = async () => {
+      setError('');
+      setGoogleLoading(true);
+      try {
+        await loginWithGoogle();
+        navigate('/dashboard');
+      } catch (err) {
+        console.error("Google login failed:", err);
+        setError(err.message || 'Failed to sign in with Google. Please try again.');
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    const handleEmailSignIn = async (e) => {
+      e.preventDefault();
+      if (!email.trim() || !password.trim()) {
+        setError('Please enter both email and password.');
+        return;
+      }
+      setError('');
+      setLoading(true);
+      try {
+        await loginWithEmail(email, password);
+        navigate('/dashboard');
+      } catch (err) {
+        console.error("Email login failed:", err);
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+          setError('Invalid email or password. Please check your credentials.');
+        } else {
+          setError(err.message || 'Failed to sign in. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
   return (
     <div className="signin-page-wrapper"> {/* Scoped wrapper to protect other pages */}
       <div className="container">
@@ -155,17 +201,27 @@ const StudyCoachSignIn = () => {
             <p className="auth-subtext">Log in to continue your learning journey.</p>
 
             <div className="social-buttons">
-              <button type="button" className="btn-social">
-                <svg className="icon-google" viewBox="0 0 48 48">
-                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z" />
-                  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3c-7.7 0-14.3 4.3-17.7 10.7z" />
-                  <path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.6 26.7 37.5 24 37.5c-5.3 0-9.7-3.4-11.3-8.1l-6.5 5C9.6 40.6 16.3 45 24 45z" />
-                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.6l6.2 5.2C40.9 36 44 30.9 44 24c0-1.4-.1-2.7-.4-3.5z" />
-                </svg>
-                Continue with Google
+              <button
+                type="button"
+                className="btn-social"
+                onClick={handleGoogleSignIn}
+                disabled={loading || googleLoading}
+                style={{ cursor: loading || googleLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {googleLoading ? (
+                  <div style={{ width: '18px', height: '18px', border: '2px solid #6347F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <svg className="icon-google" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z" />
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3c-7.7 0-14.3 4.3-17.7 10.7z" />
+                    <path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.6 26.7 37.5 24 37.5c-5.3 0-9.7-3.4-11.3-8.1l-6.5 5C9.6 40.6 16.3 45 24 45z" />
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.6l6.2 5.2C40.9 36 44 30.9 44 24c0-1.4-.1-2.7-.4-3.5z" />
+                  </svg>
+                )}
+                {googleLoading ? "Connecting with Google..." : "Continue with Google"}
               </button>
 
-              <button type="button" className="btn-social">
+              <button type="button" className="btn-social" onClick={() => setError('Microsoft Sign-In is coming soon. Please use Google or Email to sign in.')}>
                 <svg className="icon-microsoft" viewBox="0 0 23 23">
                   <rect x="1" y="1" width="10" height="10" fill="#F35325" />
                   <rect x="12" y="1" width="10" height="10" fill="#81BC06" />
@@ -178,7 +234,22 @@ const StudyCoachSignIn = () => {
 
             <div className="divider"><span>or</span></div>
 
-            <form className="auth-form" onSubmit={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
+            {error && (
+              <div style={{
+                background: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                color: '#DC2626',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                marginBottom: '14px',
+                lineHeight: '1.4'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <form className="auth-form" onSubmit={handleEmailSignIn}>
               <div className="form-group">
                 <label htmlFor="email">Email address</label>
                 <div className="input-wrap">
@@ -186,22 +257,46 @@ const StudyCoachSignIn = () => {
                     <rect x="3" y="5" width="18" height="14" rx="2" />
                     <path d="M3 7l9 6 9-6" />
                   </svg>
-                  <input type="email" id="email" name="email" placeholder="Enter your email" />
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                  />
                 </div>
               </div>
 
               <div className="form-group">
                 <div className="form-label-row">
                   <label htmlFor="password">Password</label>
-                  <a href="#" className="forgot-link">Forgot password?</a>
+                  <a href="#" className="forgot-link" onClick={(e) => { e.preventDefault(); alert("Password reset link will be sent to your email."); }}>Forgot password?</a>
                 </div>
                 <div className="input-wrap">
                   <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                     <rect x="5" y="11" width="14" height="9" rx="2" />
                     <path d="M8 11V8a4 4 0 018 0v3" />
                   </svg>
-                  <input type="password" id="password" name="password" placeholder="Enter your password" />
-                  <svg className="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <svg
+                    className="eye-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
@@ -209,11 +304,18 @@ const StudyCoachSignIn = () => {
               </div>
 
               <label className="checkbox-row">
-                <input type="checkbox" name="remember" />
+                <input
+                  type="checkbox"
+                  name="remember"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
                 <span>Remember me</span>
               </label>
 
-              <button type="submit" className="btn-primary">Log in</button>
+              <button type="submit" className="btn-primary" disabled={loading || googleLoading}>
+                {loading ? "Logging in..." : "Log in"}
+              </button>
             </form>
           </div>
         </section>

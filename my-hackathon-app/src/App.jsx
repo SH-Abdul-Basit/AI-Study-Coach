@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { StudyProvider } from "./context/StudyContext";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 import Landing from "./pages/Landing";
 import StudyCoachSignUp from "./pages/Sign-up";
 import StudyCoachSignIn from "./pages/Sign-in";
@@ -28,35 +30,43 @@ function PageLoader() {
 
 function App() {
   return (
-    <StudyProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/signup" element={<StudyCoachSignUp />} />
-            <Route path="/login" element={<StudyCoachSignIn />} />
-            <Route path="/questainaire" element={<Questionaire />} />
+    <AuthProvider>
+      <StudyProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/signup" element={<StudyCoachSignUp />} />
+              <Route path="/login" element={<StudyCoachSignIn />} />
+              <Route path="/questainaire" element={<Questionaire />} />
 
-            {/* Authenticated routes with shared layout */}
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/study-plan" element={<StudyPlanPage />} />
-              <Route path="/courses" element={<CoursesPage />} />
-              <Route path="/practice" element={<PracticePage />} />
-              <Route path="/past-papers" element={<PastPapersPage />} />
-              <Route path="/ai-coach" element={<AICoachPage />} />
-              <Route path="/progress" element={<ProgressPage />} />
-              <Route path="/materials" element={<MaterialsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
+              {/* Authenticated routes with shared layout */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/study-plan" element={<StudyPlanPage />} />
+                <Route path="/courses" element={<CoursesPage />} />
+                <Route path="/practice" element={<PracticePage />} />
+                <Route path="/past-papers" element={<PastPapersPage />} />
+                <Route path="/ai-coach" element={<AICoachPage />} />
+                <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/materials" element={<MaterialsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </StudyProvider>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </StudyProvider>
+    </AuthProvider>
   );
 }
 

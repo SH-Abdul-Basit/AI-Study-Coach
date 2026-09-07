@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Upload, 
@@ -19,11 +19,59 @@ import {
   Cell
 } from 'recharts';
 import { mockPastPapers, mockPaperAnalysis, mockPaperDifficulty } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { getPastPapers, addPastPaper } from '../firebase/firestore';
+import { uploadFile } from '../firebase/storage';
 
 export default function PastPapersPage() {
+  const { user } = useAuth();
+  const [papers, setPapers] = useState(mockPastPapers);
   const [selectedPaper, setSelectedPaper] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    async function loadPapers() {
+      try {
+        const stored = await getPastPapers(user?.uid);
+        if (stored && stored.length > 0) {
+          setPapers(stored);
+        }
+      } catch (err) {
+        console.error("Error loading past papers:", err);
+      }
+    }
+    loadPapers();
+  }, [user]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const uploadRes = await uploadFile(user?.uid, file, 'past_papers');
+      const newPaper = await addPastPaper(user?.uid, {
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        course: "Digital Logic Design",
+        type: "Midterm Exam",
+        year: "2025",
+        status: "Analyzed",
+        questions: 12,
+        fileUrl: uploadRes.url,
+      });
+
+      setPapers(prev => [newPaper, ...prev]);
+      setShowUpload(false);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error("Error uploading past paper:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleAddPriority = () => {
     setShowToast(true);
@@ -49,15 +97,22 @@ export default function PastPapersPage() {
         <div className="border-2 border-dashed border-[#6347F5]/40 bg-[#F0ECFF]/40 rounded-[10px] p-8 text-center">
           <Upload className="w-10 h-10 text-[#6347F5] mx-auto mb-3" />
           <h3 className="font-[700] text-[#202033] text-[15px] mb-1">Upload a PDF or Image</h3>
-          <p className="text-[#6F7182] text-[12px] mb-4">Drag and drop your past paper here, or click to browse.</p>
-          <button className="px-4 py-2 bg-white border border-[#ECECF2] text-[#202033] rounded-[8px] text-[12px] font-[700] shadow-xs cursor-pointer hover:bg-[#F0ECFF] transition-colors">
-            Browse Files
-          </button>
+          <p className="text-[#6F7182] text-[12px] mb-4">Select your past paper to analyze.</p>
+          <label className="inline-flex items-center px-4 py-2 bg-white border border-[#ECECF2] text-[#202033] rounded-[8px] text-[12px] font-[700] shadow-xs cursor-pointer hover:bg-[#F0ECFF] transition-colors">
+            {uploading ? "Uploading & Analyzing..." : "Browse Files"}
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+              className="hidden"
+              disabled={uploading}
+              onChange={handleFileUpload}
+            />
+          </label>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {mockPastPapers.map((paper) => (
+        {papers.map((paper) => (
           <div 
             key={paper.id} 
             onClick={() => setSelectedPaper(paper)}
@@ -76,7 +131,7 @@ export default function PastPapersPage() {
               <p className="text-[#6F7182] text-[12px] mb-4">{paper.course} • {paper.type}</p>
 
               <div className="flex items-center justify-between text-[11px] text-[#9295A5] mb-2 pt-3 border-t border-[#ECECF2]">
-                <span>{paper.questions} Questions</span>
+                <span>{paper.questions || 12} Questions</span>
                 <span className="font-[600] text-[#202033]">Year {paper.year}</span>
               </div>
             </div>
