@@ -20,12 +20,13 @@ import {
 } from 'recharts';
 import { mockPastPapers, mockPaperAnalysis, mockPaperDifficulty } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
-import { getPastPapers, addPastPaper } from '../firebase/firestore';
+import { getPastPapers, addPastPaper, getUserCourses } from '../firebase/firestore';
 import { uploadFile } from '../firebase/storage';
 
 export default function PastPapersPage() {
   const { user } = useAuth();
   const [papers, setPapers] = useState(mockPastPapers);
+  const [courses, setCourses] = useState([]);
   const [selectedPaper, setSelectedPaper] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -34,9 +35,15 @@ export default function PastPapersPage() {
   useEffect(() => {
     async function loadPapers() {
       try {
-        const stored = await getPastPapers(user?.uid);
+        const [stored, userCourses] = await Promise.all([
+          getPastPapers(user?.uid),
+          getUserCourses(user?.uid)
+        ]);
         if (stored && stored.length > 0) {
           setPapers(stored);
+        }
+        if (userCourses && userCourses.length > 0) {
+          setCourses(userCourses);
         }
       } catch (err) {
         console.error("Error loading past papers:", err);
@@ -52,11 +59,12 @@ export default function PastPapersPage() {
     setUploading(true);
     try {
       const uploadRes = await uploadFile(user?.uid, file, 'past_papers');
+      const defaultCourse = courses.length > 0 ? courses[0].name : "General Course";
       const newPaper = await addPastPaper(user?.uid, {
         title: file.name.replace(/\.[^/.]+$/, ""),
-        course: "Digital Logic Design",
+        course: defaultCourse,
         type: "Midterm Exam",
-        year: "2025",
+        year: new Date().getFullYear().toString(),
         status: "Analyzed",
         questions: 12,
         fileUrl: uploadRes.url,

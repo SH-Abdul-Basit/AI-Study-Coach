@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import '../styles/sign-up.css';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +38,8 @@ export default function StudyCoachSignUp() {
     setGeneralError('');
     setGoogleLoading(true);
     try {
-      await loginWithGoogle();
+      const signedInUser = await loginWithGoogle('signup');
+      if (!signedInUser) return;
       navigate('/questainaire');
     } catch (err) {
       console.error("Google sign-up failed:", err);
@@ -206,15 +207,6 @@ export default function StudyCoachSignUp() {
                   <span className="google-g">G</span>
                 )}
                 {googleLoading ? "Signing up with Google..." : "Sign up with Google"}
-              </button>
-              <button
-                type="button"
-                className="social-btn"
-                id="microsoftButton"
-                onClick={() => setGeneralError('Microsoft Sign-In will be available soon. Please use Google or Email.')}
-              >
-                <span className="ms-logo"><i></i><i></i><i></i><i></i></span>
-                Sign up with Microsoft
               </button>
             </div>
 

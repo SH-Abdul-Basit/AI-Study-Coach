@@ -1,5 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, FileText, Code2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const recommendedCards = [
   { icon: Play, iconClass: 'rec-purple', title: 'C++ Full Course (Urdu/Hindi)', meta: 'YouTube · 4.5h' },
@@ -8,6 +10,10 @@ const recommendedCards = [
 ];
 
 export default function BottomBanner() {
+  const navigate = useNavigate();
+  const { userProfile, user } = useAuth();
+  const studentName = userProfile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'Student';
+
   return (
     <section className="bottom-section">
       <div className="consistency-card">
@@ -28,8 +34,8 @@ export default function BottomBanner() {
         </div>
         <div className="consistency-copy">
           <h3>Consistency today,<br /><span>Success tomorrow.</span></h3>
-          <p>Keep going, Ali! You&apos;ve got this. 💪</p>
-          <button type="button">Start Studying</button>
+          <p>Keep going, {studentName}! You&apos;ve got this. 💪</p>
+          <button type="button" onClick={() => navigate('/study-plan')} style={{ cursor: 'pointer' }}>Start Studying</button>
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Upload, FileText, Presentation, File, LayoutList, ClipboardList, CheckCircle, Clock, X } from 'lucide-react';
 import { mockMaterials } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
-import { getMaterials, addMaterial as fbAddMaterial } from '../firebase/firestore';
+import { getMaterials, addMaterial as fbAddMaterial, getUserCourses } from '../firebase/firestore';
 import { uploadFile } from '../firebase/storage';
 
 const getFileIcon = (type) => {
@@ -21,6 +21,7 @@ const TABS = ['All', 'Lecture Slides', 'Notes', 'Syllabus', 'Assignment', 'Past 
 export default function MaterialsPage() {
   const { user } = useAuth();
   const [materials, setMaterials] = useState(mockMaterials);
+  const [courses, setCourses] = useState([]);
   const [activeTab, setActiveTab] = useState('All');
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -28,9 +29,15 @@ export default function MaterialsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const stored = await getMaterials(user?.uid);
+        const [stored, userCourses] = await Promise.all([
+          getMaterials(user?.uid),
+          getUserCourses(user?.uid)
+        ]);
         if (stored && stored.length > 0) {
           setMaterials(stored);
+        }
+        if (userCourses && userCourses.length > 0) {
+          setCourses(userCourses);
         }
       } catch (err) {
         console.error("Failed to load materials:", err);
@@ -53,10 +60,12 @@ export default function MaterialsPage() {
       if (file.name.toLowerCase().includes('assign')) type = 'Assignment';
       if (file.name.toLowerCase().includes('paper') || file.name.toLowerCase().includes('exam')) type = 'Past Paper';
 
+      const defaultCourse = courses.length > 0 ? (courses[0].code || courses[0].name) : 'General';
+
       const newRecord = await fbAddMaterial(user?.uid, {
         name: file.name,
         type,
-        course: 'DLD',
+        course: defaultCourse,
         size: uploadRes.size,
         url: uploadRes.url,
       });

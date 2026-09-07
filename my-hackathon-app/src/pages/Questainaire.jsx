@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/questionaire.css';
 import { useAuth } from '../context/AuthContext';
@@ -110,33 +110,49 @@ export default function OnboardingQuestionnaire() {
 
   const submitOnboardingData = async () => {
     setSubmitting(true);
+    setError('');
+
     try {
-      const userId = user?.uid || 'demo-student-ali';
+      if (!user?.uid) {
+        setError('Please sign in before completing onboarding.');
+        return;
+      }
+      const userId = user.uid;
+
+      // Extract client-side metadata immediately (no network delay)
       const uploadedFiles = [];
       for (const file of files) {
         try {
           const res = await uploadFile(userId, file, 'materials');
           uploadedFiles.push(res);
         } catch (e) {
-          console.warn("File upload notice:", e);
+          console.warn("File processing notice:", e);
         }
       }
 
-      await saveOnboardingData(userId, {
+      // Save onboarding data to Firestore with a 5s safety timeout
+      const savePromise = saveOnboardingData(userId, {
         semester: answers.semester,
         subject: answers.subject,
         professor: answers.professor,
         files: uploadedFiles,
       });
 
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 4000));
+      await Promise.race([savePromise, timeoutPromise]);
+
       if (reloadProfile) {
-        await reloadProfile();
+        try {
+          await reloadProfile();
+        } catch (err) {
+          console.warn("Profile reload non-critical error:", err);
+        }
       }
 
       navigate('/dashboard');
     } catch (err) {
       console.error('Failed to save onboarding data:', err);
-      navigate('/dashboard');
+      setError('We could not save your onboarding details. Please try again.');
     } finally {
       setSubmitting(false);
     }

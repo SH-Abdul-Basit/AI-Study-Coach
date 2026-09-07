@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import '../styles/sign-in.css';
 import { useNavigate } from 'react-router-dom';
 import boyImage from "../assets/images/bacha.png";
@@ -19,7 +19,8 @@ const StudyCoachSignIn = () => {
       setError('');
       setGoogleLoading(true);
       try {
-        await loginWithGoogle();
+        const signedInUser = await loginWithGoogle('login');
+        if (!signedInUser) return;
         navigate('/dashboard');
       } catch (err) {
         console.error("Google login failed:", err);
@@ -221,15 +222,6 @@ const StudyCoachSignIn = () => {
                 {googleLoading ? "Connecting with Google..." : "Continue with Google"}
               </button>
 
-              <button type="button" className="btn-social" onClick={() => setError('Microsoft Sign-In is coming soon. Please use Google or Email to sign in.')}>
-                <svg className="icon-microsoft" viewBox="0 0 23 23">
-                  <rect x="1" y="1" width="10" height="10" fill="#F35325" />
-                  <rect x="12" y="1" width="10" height="10" fill="#81BC06" />
-                  <rect x="1" y="12" width="10" height="10" fill="#05A6F0" />
-                  <rect x="12" y="12" width="10" height="10" fill="#FFBA08" />
-                </svg>
-                Continue with Microsoft
-              </button>
             </div>
 
             <div className="divider"><span>or</span></div>

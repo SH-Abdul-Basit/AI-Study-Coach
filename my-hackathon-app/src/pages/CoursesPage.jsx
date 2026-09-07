@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, FileText, BrainCircuit, Calendar, Clock, Plus, ArrowLeft, TrendingUp, X } from 'lucide-react';
-import { mockCourses, mockTopicMastery } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { getUserCourses, addCourse as fbAddCourse } from '../firebase/firestore';
 
 export default function CoursesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [courses, setCourses] = useState(mockCourses);
+  const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [courseError, setCourseError] = useState('');
   const [newCourse, setNewCourse] = useState({
     name: '',
     code: '',
@@ -27,9 +28,12 @@ export default function CoursesPage() {
         const data = await getUserCourses(user?.uid);
         if (data && data.length > 0) {
           setCourses(data);
+        } else {
+          setCourses([]);
         }
       } catch (err) {
         console.error("Failed to load courses:", err);
+        setCourses([]);
       } finally {
         setLoading(false);
       }
@@ -39,18 +43,31 @@ export default function CoursesPage() {
 
   const handleAddCourse = async (e) => {
     e.preventDefault();
+    if (savingCourse) return;
+    const normalizedName = newCourse.name.trim().toLowerCase();
+    const normalizedCode = newCourse.code.trim().toLowerCase();
+    if (courses.some((course) => course.name?.trim().toLowerCase() === normalizedName && course.code?.trim().toLowerCase() === normalizedCode)) {
+      setCourseError('This course is already in your course list.');
+      return;
+    }
+    setSavingCourse(true);
+    setCourseError('');
     try {
       const colors = ['#6347F5', '#18A86B', '#FF8A34', '#05A6F0', '#E03A3A'];
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
       const created = await fbAddCourse(user?.uid, {
         ...newCourse,
-        progress: 0,
-        topics: 6,
+        progress: 10,
+        topics: [],
         materials: 0,
         quizzesTaken: 0,
         color: randomColor,
         daysUntilExam: 30,
       });
+      if (created.existing) {
+        setCourseError('This course is already in your course list.');
+        return;
+      }
       setCourses(prev => [created, ...prev]);
       setShowAddModal(false);
       setNewCourse({
@@ -63,17 +80,15 @@ export default function CoursesPage() {
       });
     } catch (err) {
       console.error("Failed to add course:", err);
-      setShowAddModal(false);
+      setCourseError('We could not save this course. Please try again.');
+    } finally {
+      setSavingCourse(false);
     }
   };
 
   if (selectedCourse) {
-    // Course Detail View
-    const isDLD = selectedCourse.code === 'DLD';
-    const topics = isDLD ? mockTopicMastery : [
-      { id: 'p1', name: 'Topic 1', mastery: 50, trend: 'stable', status: 'moderate' },
-      { id: 'p2', name: 'Topic 2', mastery: 75, trend: 'up', status: 'strong' }
-    ];
+    // Dynamic Course Detail View
+    const topics = Array.isArray(selectedCourse.topics) ? selectedCourse.topics : [];
 
     return (
       <div className="max-w-6xl mx-auto space-y-6">
@@ -151,6 +166,7 @@ export default function CoursesPage() {
             <div className="card p-6">
               <h2 className="text-[15px] font-[700] text-[#202033] tracking-[-0.015em] mb-4">Topic Mastery</h2>
               <div className="space-y-3">
+                {topics.length === 0 && <p className="text-[12px] text-[#6F7182]">No topics have been added yet.</p>}
                 {topics.map(topic => (
                   <div key={topic.id} className="flex items-center justify-between p-3 border border-[#ECECF2] rounded-[8px] bg-[#FCFCFE]">
                     <div>
@@ -228,56 +244,87 @@ export default function CoursesPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map(course => (
-          <div 
-            key={course.id} 
-            onClick={() => setSelectedCourse(course)}
-            className="card overflow-hidden cursor-pointer hover:border-[#6347F5]/40 transition-all group flex flex-col"
-          >
-            <div className="h-1.5 w-full transition-all group-hover:h-2" style={{ backgroundColor: course.color }}></div>
-            <div className="p-5 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] font-[700] px-2 py-0.5 rounded-[6px] bg-[#F0ECFF] text-[#6347F5]">
-                  {course.code}
-                </span>
-                <span className="text-[10px] font-[600] text-[#FF8A34] bg-[#FFF3EB] px-2 py-0.5 rounded-[6px]">
-                  {course.daysUntilExam} days to {course.examType}
-                </span>
-              </div>
-              
-              <h2 className="text-[15px] font-[700] text-[#202033] mb-1 line-clamp-1 group-hover:text-[#6347F5] transition-colors">{course.name}</h2>
-              <p className="text-[12px] text-[#6F7182] mb-4">{course.teacher}</p>
-              
-              <div className="mt-auto space-y-3.5">
-                <div>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="font-[500] text-[#6F7182]">Progress</span>
-                    <span className="font-[700] text-[#202033]">{course.progress}%</span>
-                  </div>
-                  <div className="w-full bg-[#EEEEF4] rounded-full h-[4px] overflow-hidden">
-                    <div 
-                      className="h-full rounded-full"
-                      style={{ width: `${course.progress}%`, backgroundColor: course.color }}
-                    ></div>
-                  </div>
+      {loading ? (
+        <div className="card p-12 text-center border border-[#ECECF2] rounded-[12px] flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-[#6347F5] border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-[13.5px] font-[600] text-[#6F7182]">Loading your enrolled courses...</span>
+        </div>
+      ) : courses.length === 0 ? (
+        <div className="card p-12 text-center border border-dashed border-[#ECECF2] rounded-[12px]">
+          <div className="w-12 h-12 rounded-full bg-[#F0ECFF] flex items-center justify-center mx-auto mb-4 text-[#6347F5]">
+            <Book className="w-6 h-6" />
+          </div>
+          <h3 className="text-[17px] font-[700] text-[#202033] mb-1">No Courses Enrolled Yet</h3>
+          <p className="text-[13px] text-[#6F7182] max-w-md mx-auto mb-6">
+            Get started by adding your current semester courses, or complete your onboarding questionnaire to let your AI coach build your personalized syllabus.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#6347F5] text-white px-4 py-2 rounded-[8px] text-[12.5px] font-[700] hover:bg-[#5236E5] transition-colors cursor-pointer"
+            >
+              + Add Your First Course
+            </button>
+            <button
+              onClick={() => navigate('/questainaire')}
+              className="bg-white border border-[#ECECF2] text-[#202033] px-4 py-2 rounded-[8px] text-[12.5px] font-[650] hover:bg-[#FCFCFE] transition-colors cursor-pointer"
+            >
+              Take Questionnaire
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.map(course => (
+            <div 
+              key={course.id} 
+              onClick={() => setSelectedCourse(course)}
+              className="card overflow-hidden cursor-pointer hover:border-[#6347F5]/40 transition-all group flex flex-col"
+            >
+              <div className="h-1.5 w-full transition-all group-hover:h-2" style={{ backgroundColor: course.color || '#6347F5' }}></div>
+              <div className="p-5 flex-1 flex flex-col">
+                <div className="flex justify-between items-start mb-3">
+                  <span className="text-[10px] font-[700] px-2 py-0.5 rounded-[6px] bg-[#F0ECFF] text-[#6347F5]">
+                    {course.code || 'COURSE'}
+                  </span>
+                  <span className="text-[10px] font-[600] text-[#FF8A34] bg-[#FFF3EB] px-2 py-0.5 rounded-[6px]">
+                    {course.daysUntilExam || 30} days to {course.examType || 'Exam'}
+                  </span>
                 </div>
-
-                <div className="flex justify-between pt-3.5 border-t border-[#ECECF2]">
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>{course.materials} materials</span>
+                
+                <h2 className="text-[15px] font-[700] text-[#202033] mb-1 line-clamp-1 group-hover:text-[#6347F5] transition-colors">{course.name}</h2>
+                <p className="text-[12px] text-[#6F7182] mb-4">{course.teacher || 'Instructor'}</p>
+                
+                <div className="mt-auto space-y-3.5">
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1">
+                      <span className="font-[500] text-[#6F7182]">Progress</span>
+                      <span className="font-[700] text-[#202033]">{course.progress || 0}%</span>
+                    </div>
+                    <div className="w-full bg-[#EEEEF4] rounded-full h-[4px] overflow-hidden">
+                      <div 
+                        className="h-full rounded-full"
+                        style={{ width: `${course.progress || 0}%`, backgroundColor: course.color || '#6347F5' }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
-                    <BrainCircuit className="w-3.5 h-3.5" />
-                    <span>{course.quizzesTaken} quizzes</span>
+
+                  <div className="flex justify-between pt-3.5 border-t border-[#ECECF2]">
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>{course.materials || 0} materials</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#9295A5]">
+                      <BrainCircuit className="w-3.5 h-3.5" />
+                      <span>{course.quizzesTaken || 0} quizzes</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Add Course Modal */}
       {showAddModal && (
@@ -291,6 +338,7 @@ export default function CoursesPage() {
             </div>
             
             <form onSubmit={handleAddCourse} className="p-5 space-y-4 overflow-y-auto">
+              {courseError && <p className="text-[12px] text-[#DC2626] bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] p-2.5">{courseError}</p>}
               <div>
                 <label className="block text-[12px] font-[600] text-[#202033] mb-1">Course Name</label>
                 <input
@@ -366,8 +414,8 @@ export default function CoursesPage() {
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-3.5 py-2 text-[12px] font-[600] text-[#6F7182] hover:text-[#202033] cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-[#6347F5] text-white rounded-[8px] text-[12.5px] font-[700] hover:bg-[#5236E5] cursor-pointer shadow-sm">
-                  Save Course
+                <button type="submit" disabled={savingCourse} className="px-4 py-2 bg-[#6347F5] text-white rounded-[8px] text-[12.5px] font-[700] hover:bg-[#5236E5] cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {savingCourse ? 'Saving…' : 'Save Course'}
                 </button>
               </div>
             </form>

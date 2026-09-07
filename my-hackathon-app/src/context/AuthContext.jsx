@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
   loginWithGoogle as fbLoginWithGoogle,
   loginWithEmail as fbLoginWithEmail,
@@ -6,26 +6,27 @@ import {
   logoutUser,
   subscribeToAuthChanges,
 } from "../firebase/auth";
-import { getUserProfile, saveUserProfile } from "../firebase/firestore";
-import { mockUser } from "../data/mockData";
+import { getExistingUserProfile, saveUserProfile } from "../firebase/firestore";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(mockUser);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) {
-      setUserProfile(mockUser);
-      return;
+      setUserProfile(null);
+      return null;
     }
     try {
-      const profile = await getUserProfile(userId);
-      setUserProfile((prev) => ({ ...prev, ...profile }));
+      const profile = await getExistingUserProfile(userId);
+      setUserProfile(profile);
+      return profile;
     } catch (err) {
       console.error("Error fetching user profile:", err);
+      return null;
     }
   }, []);
 
@@ -35,7 +36,7 @@ export function AuthProvider({ children }) {
       if (currentUser) {
         await fetchProfile(currentUser.uid);
       } else {
-        setUserProfile(mockUser);
+        setUserProfile(null);
       }
       setLoading(false);
     });
@@ -43,8 +44,9 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, [fetchProfile]);
 
-  const loginWithGoogle = async () => {
-    const resUser = await fbLoginWithGoogle();
+  const loginWithGoogle = async (mode = "login") => {
+    const resUser = await fbLoginWithGoogle(mode);
+    if (!resUser) return null;
     setUser(resUser);
     await fetchProfile(resUser.uid);
     return resUser;
@@ -67,7 +69,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     await logoutUser();
     setUser(null);
-    setUserProfile(mockUser);
+    setUserProfile(null);
   };
 
   const updateProfileData = async (updates) => {

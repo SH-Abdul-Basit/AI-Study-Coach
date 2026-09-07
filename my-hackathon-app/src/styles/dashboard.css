@@ -186,6 +186,7 @@ h1,h2,h3,p{margin:0}
   color:var(--text-2);font-size:12px;background:#fff;
 }
 .study-rows{display:grid}
+.empty-dashboard-state{font-size:11px;line-height:1.45;color:var(--muted);padding:14px 2px;text-align:center}
 .study-row{
   min-height:61px;display:grid;grid-template-columns:31px minmax(0,1fr) auto 19px;
   align-items:center;gap:9px;border-top:1px solid #F2F2F6;

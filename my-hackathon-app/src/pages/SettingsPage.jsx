@@ -1,60 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings, User, Book, Bell, AlertTriangle, Save, Check, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockUser } from '../data/mockData';
 
 export default function SettingsPage() {
   const { user, userProfile, updateProfileData, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState({
-    fullName: userProfile?.fullName || mockUser.fullName,
-    email: userProfile?.email || user?.email || mockUser.email,
-    university: userProfile?.university || mockUser.university,
-    program: userProfile?.program || mockUser.program,
-    semester: userProfile?.semester || mockUser.semester,
-    avatarUrl: userProfile?.avatarUrl || user?.photoURL || mockUser.avatarUrl,
-  });
+  const [profile, setProfile] = useState(() => ({
+    fullName: userProfile?.fullName || userProfile?.name || user?.displayName || 'Student',
+    email: userProfile?.email || user?.email || '',
+    university: userProfile?.university || '',
+    program: userProfile?.program || 'Undergraduate',
+    semester: userProfile?.semester || '1st Semester',
+    avatarUrl: userProfile?.avatarUrl || user?.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=Student&backgroundColor=6347f5`,
+  }));
 
-  const [studyPrefs, setStudyPrefs] = useState({
-    dailyStudyTime: userProfile?.studyPreferences?.dailyStudyTime || mockUser.studyPreferences.dailyStudyTime,
-    preferredTime: userProfile?.studyPreferences?.preferredTime || mockUser.studyPreferences.preferredTime,
-    studyGoal: userProfile?.studyPreferences?.studyGoal || mockUser.studyPreferences.studyGoal,
-  });
+  const [studyPrefs, setStudyPrefs] = useState(() => ({
+    dailyStudyTime: userProfile?.studyPreferences?.dailyStudyTime || '2 hours',
+    preferredTime: userProfile?.studyPreferences?.preferredTime || 'Evening (6–10 PM)',
+    studyGoal: userProfile?.studyPreferences?.studyGoal || 'Score above 80% in finals',
+  }));
 
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState(() => ({
     studyReminders: userProfile?.notifications?.studyReminders ?? true,
     quizRecommendations: userProfile?.notifications?.quizRecommendations ?? true,
     planUpdates: userProfile?.notifications?.planUpdates ?? false,
-  });
+  }));
 
   useEffect(() => {
     if (userProfile) {
-      setProfile({
-        fullName: userProfile.fullName || mockUser.fullName,
-        email: userProfile.email || user?.email || mockUser.email,
-        university: userProfile.university || mockUser.university,
-        program: userProfile.program || mockUser.program,
-        semester: userProfile.semester || mockUser.semester,
-        avatarUrl: userProfile.avatarUrl || user?.photoURL || mockUser.avatarUrl,
-      });
+      setProfile((prev) => ({
+        ...prev,
+        fullName: userProfile.fullName || userProfile.name || prev.fullName,
+        email: userProfile.email || prev.email,
+        university: userProfile.university || prev.university,
+        program: userProfile.program || prev.program,
+        semester: userProfile.semester || prev.semester,
+        avatarUrl: userProfile.avatarUrl || prev.avatarUrl,
+      }));
       if (userProfile.studyPreferences) {
-        setStudyPrefs({
-          dailyStudyTime: userProfile.studyPreferences.dailyStudyTime || '4 hours',
-          preferredTime: userProfile.studyPreferences.preferredTime || 'Evening (6–10 PM)',
-          studyGoal: userProfile.studyPreferences.studyGoal || 'Score above 80% in finals',
-        });
+        setStudyPrefs((prev) => ({
+          ...prev,
+          dailyStudyTime: userProfile.studyPreferences.dailyStudyTime || prev.dailyStudyTime,
+          preferredTime: userProfile.studyPreferences.preferredTime || prev.preferredTime,
+          studyGoal: userProfile.studyPreferences.studyGoal || prev.studyGoal,
+        }));
       }
       if (userProfile.notifications) {
-        setNotifications({
-          studyReminders: userProfile.notifications.studyReminders ?? true,
-          quizRecommendations: userProfile.notifications.quizRecommendations ?? true,
-          planUpdates: userProfile.notifications.planUpdates ?? false,
-        });
+        setNotifications((prev) => ({
+          ...prev,
+          studyReminders: userProfile.notifications.studyReminders ?? prev.studyReminders,
+          quizRecommendations: userProfile.notifications.quizRecommendations ?? prev.quizRecommendations,
+          planUpdates: userProfile.notifications.planUpdates ?? prev.planUpdates,
+        }));
       }
     }
-  }, [userProfile, user]);
+  }, [userProfile]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);

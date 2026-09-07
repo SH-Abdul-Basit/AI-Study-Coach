@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStudy } from '../context/StudyContext';
 import { useAuth } from '../context/AuthContext';
-import { getStudyPlan, updateTaskStatus as fbUpdateTaskStatus } from '../firebase/firestore';
-import { mockStudyPlan, mockCourses, mockProgressStats, mockPlanChanges } from '../data/mockData';
+import { getStudyPlan, updateTaskStatus as fbUpdateTaskStatus, getUserCourses } from '../firebase/firestore';
 import { 
   Calendar, 
   Clock, 
   CheckCircle2, 
   Circle, 
-  AlertTriangle, 
   BrainCircuit, 
   PlayCircle,
   ArrowRight
@@ -18,15 +15,19 @@ import {
 export default function StudyPlanPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const dldCourse = mockCourses.find(c => c.code === 'DLD');
-  const [plan, setPlan] = useState(mockStudyPlan);
+  const [courses, setCourses] = useState([]);
+  const [plan, setPlan] = useState([]);
 
   useEffect(() => {
     async function loadPlan() {
       try {
-        const savedPlan = await getStudyPlan(user?.uid);
-        if (savedPlan && savedPlan.length > 0) {
-          setPlan(savedPlan);
+        const [savedPlan, userCourses] = await Promise.all([
+          getStudyPlan(user?.uid),
+          getUserCourses(user?.uid),
+        ]);
+        setPlan(savedPlan || []);
+        if (userCourses && userCourses.length > 0) {
+          setCourses(userCourses);
         }
       } catch (err) {
         console.error("Failed to load study plan from Firestore:", err);
@@ -64,14 +65,10 @@ export default function StudyPlanPage() {
     }
   };
 
-  const getDayStatusStyle = (status) => {
-    switch(status) {
-      case 'completed': return 'bg-[#18A86B]/10 text-[#18A86B] border-[#18A86B]/20';
-      case 'today': return 'bg-[#6347F5] text-white border-[#6347F5]';
-      case 'upcoming': return 'bg-[#FCFCFE] text-[#6F7182] border-[#ECECF2]';
-      default: return 'bg-[#FCFCFE] text-[#6F7182] border-[#ECECF2]';
-    }
-  };
+  const primaryCourse = courses[0];
+  const allTasks = plan.flatMap(d => d.tasks || []);
+  const completedCount = allTasks.filter(t => t.status === 'completed').length;
+  const planCompletion = allTasks.length > 0 ? Math.round((completedCount / allTasks.length) * 100) : 0;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -83,18 +80,18 @@ export default function StudyPlanPage() {
             <h1 className="text-[24px] font-[650] text-[#202033] tracking-[-0.035em] leading-[1.15] mb-2">Your Personalized Study Plan</h1>
             <p className="text-[13px] text-[#6F7182] flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[#FF8A34]" /> 
-              DLD Final in {dldCourse?.daysUntilExam || 12} days
+              {primaryCourse ? `${primaryCourse.name} ${primaryCourse.examType || 'Exam'} in ${primaryCourse.daysUntilExam || 30} days` : 'Exam prep in progress'}
             </p>
           </div>
           <div className="w-full md:w-64">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[13px] font-[600] text-[#202033]">Plan Completion</span>
-              <span className="text-[13px] font-[700] text-[#6347F5]">{mockProgressStats.planCompletion}%</span>
+              <span className="text-[13px] font-[700] text-[#6347F5]">{planCompletion}%</span>
             </div>
             <div className="w-full bg-[#EEEEF4] rounded-full h-[6px] overflow-hidden">
               <div 
                 className="bg-[#6347F5] h-full rounded-full transition-all duration-300" 
-                style={{ width: `${mockProgressStats.planCompletion}%` }}
+                style={{ width: `${planCompletion}%` }}
               ></div>
             </div>
           </div>
@@ -107,6 +104,7 @@ export default function StudyPlanPage() {
           <h2 className="text-[15px] font-[700] text-[#202033] tracking-[-0.015em]">Day-by-Day Schedule</h2>
           
           <div className="space-y-5 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[#ECECF2] before:to-transparent">
+            {plan.length === 0 && <div className="card p-6 text-center text-[13px] text-[#6F7182]">Your study plan will appear here after you complete onboarding.</div>}
             {plan.map((day, dayIndex) => (
               <div key={day.day} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                 {/* Timeline Marker */}
@@ -202,19 +200,21 @@ export default function StudyPlanPage() {
             <p className="text-[12px] text-[#6F7182] mb-5 leading-relaxed">Here's how your coach has adapted your schedule recently based on your progress.</p>
             
             <div className="space-y-4">
-              {mockPlanChanges.map(change => (
+              {plan.filter(day => day.aiUpdated).length === 0 ? (
+                <p className="text-[12px] text-[#6F7182]">No AI plan changes yet.</p>
+              ) : plan.filter(day => day.aiUpdated).map(change => (
                 <div key={change.id} className="relative pl-4 border-l-2 border-[#6347F5]/30 pb-4 last:border-0 last:pb-0">
                   <div className="absolute w-2 h-2 bg-[#6347F5] rounded-full -left-[5px] top-1.5"></div>
                   <div className="text-[11px] font-[500] text-[#9295A5] mb-1">
                     {new Date(change.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </div>
-                  <h4 className="font-[650] text-[#202033] text-[13px] mb-1">{change.title}</h4>
-                  <p className="text-[12px] text-[#6F7182] mb-2 leading-relaxed">{change.reason}</p>
+                  <h4 className="font-[650] text-[#202033] text-[13px] mb-1">Study plan updated</h4>
+                  <p className="text-[12px] text-[#6F7182] mb-2 leading-relaxed">{change.aiReason}</p>
                   
                   <div className="flex flex-wrap gap-1.5">
-                    {change.affectedTopics.map(topic => (
-                      <span key={topic} className="text-[10px] uppercase font-[600] bg-[#ECECF2] text-[#6F7182] px-2 py-0.5 rounded-[4px]">
-                        {topic}
+                    {(change.tasks || []).filter(task => task.isAutoAdapted).map(task => (
+                      <span key={task.id} className="text-[10px] uppercase font-[600] bg-[#ECECF2] text-[#6F7182] px-2 py-0.5 rounded-[4px]">
+                        {task.topic}
                       </span>
                     ))}
                   </div>

@@ -1,35 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bot, User, Send, Sparkles, BookOpen } from 'lucide-react';
-import { mockCoachMessages, mockSuggestedPrompts } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
-import { getChatMessages, saveChatMessage } from '../firebase/firestore';
+import {
+  getChatMessages,
+  saveChatMessage,
+  getUserCourses,
+  getStudyPlan,
+  getTopicMastery,
+  getQuizHistory,
+  getMaterials,
+  getPastPapers,
+} from '../firebase/firestore';
+import { askStudyCoach } from '../services/gemini';
 
-const mockResponses = [
-  {
-    text: "Based on your performance data and course materials, I recommend focusing on K-Maps today. Your mastery is 43% and it accounts for 32% of past paper questions.",
-    sources: ['DLD Lecture 07 — K-Maps', 'DLD Final 2025']
-  },
-  {
-    text: "Great question! I checked Dr. Ahmed Khan's past papers and Sequential Logic questions usually focus on flip-flop conversion. I've added a quick review session to your plan.",
-    sources: ['Chapter 3 Notes — Sequential Logic']
-  },
-  {
-    text: "You've been studying for 2 hours straight. Your analytics show your retention drops after 90 minutes. I suggest taking a 15-minute break now.",
-    sources: []
-  },
-  {
-    text: "I've analyzed your progress. You're doing excellent in Boolean Algebra (82% mastery). Let's shift some of that study time to weaker areas.",
-    sources: []
-  }
+const suggestedPrompts = [
+  'Help me plan a focused study session.',
+  'Explain a concept in simple terms.',
+  'Create practice questions for my current subject.',
 ];
 
 export default function AICoachPage() {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState(mockCoachMessages);
+  const { user, userProfile } = useAuth();
+  const studentFirstName = userProfile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there';
+  const [messages, setMessages] = useState([{
+    role: 'bot',
+    text: `Hi ${studentFirstName}! I'm your AI study coach. I'm here to analyze your course materials, review past papers, and guide your daily study plan. How can I help you prepare today?`,
+    timestamp: 'Just now',
+    sources: []
+  }]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [studentContext, setStudentContext] = useState({});
   const messagesEndRef = useRef(null);
-  const [responseIndex, setResponseIndex] = useState(0);
 
   useEffect(() => {
     async function loadChat() {
@@ -37,13 +39,48 @@ export default function AICoachPage() {
         const stored = await getChatMessages(user?.uid);
         if (stored && stored.length > 0) {
           setMessages(stored);
+        } else {
+          setMessages([{
+            role: 'bot',
+            text: `Hi ${studentFirstName}! I'm your AI study coach. I'm here to analyze your course materials, review past papers, and guide your daily study plan. How can I help you prepare today?`,
+            timestamp: 'Just now',
+            sources: []
+          }]);
         }
       } catch (err) {
         console.error("Error loading chat messages:", err);
       }
     }
     loadChat();
-  }, [user]);
+  }, [user, studentFirstName]);
+
+  useEffect(() => {
+    async function loadStudentContext() {
+      if (!user?.uid) return;
+      try {
+        const [courses, studyPlan, topicMastery, quizHistory, materials, pastPapers] = await Promise.all([
+          getUserCourses(user.uid),
+          getStudyPlan(user.uid),
+          getTopicMastery(user.uid),
+          getQuizHistory(user.uid),
+          getMaterials(user.uid),
+          getPastPapers(user.uid),
+        ]);
+        setStudentContext({
+          profile: userProfile || {},
+          courses,
+          studyPlan,
+          topicMastery,
+          quizHistory,
+          materials,
+          pastPapers,
+        });
+      } catch (error) {
+        console.error('Unable to load student context for the AI coach:', error);
+      }
+    }
+    loadStudentContext();
+  }, [user?.uid, userProfile]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,19 +99,21 @@ export default function AICoachPage() {
     setInput('');
     setIsTyping(true);
 
-    // Save user message to Firestore
-    saveChatMessage(user?.uid, userMsg);
-
-    setTimeout(async () => {
-      const response = mockResponses[responseIndex % mockResponses.length];
-      setResponseIndex(prev => prev + 1);
-      const assistantMsg = { role: 'assistant', text: response.text, sources: response.sources };
-      setMessages([...newMessages, assistantMsg]);
+    try {
+      await saveChatMessage(user?.uid, userMsg);
+      const text = await askStudyCoach(newMessages, studentContext);
+      const assistantMsg = { role: 'assistant', text, sources: [] };
+      setMessages((current) => [...current, assistantMsg]);
       setIsTyping(false);
-
-      // Save assistant message to Firestore
-      saveChatMessage(user?.uid, assistantMsg);
-    }, 800);
+      await saveChatMessage(user?.uid, assistantMsg);
+    } catch (error) {
+      setMessages((current) => [...current, {
+        role: 'assistant',
+        text: `I couldn't respond just now: ${error.message}`,
+        sources: [],
+      }]);
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -175,7 +214,7 @@ export default function AICoachPage() {
       {/* Suggested Prompts — background spans full width, inner row aligned to same column */}
       <div className="px-5 py-2.5 border-t border-[#ECECF2] bg-white overflow-x-auto whitespace-nowrap scrollbar-hide">
         <div className="flex gap-2 max-w-3xl mx-auto">
-          {mockSuggestedPrompts.map((prompt, idx) => (
+          {suggestedPrompts.map((prompt, idx) => (
             <button
               key={idx}
               onClick={() => handleSend(prompt)}

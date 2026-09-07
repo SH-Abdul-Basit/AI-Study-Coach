@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Mic, MoreVertical, Paperclip, Bot } from 'lucide-react';
+import { askStudyCoach } from '../../services/gemini';
 
 const ONBOARDING_QUESTIONS = [
   'Which university are you studying at?',
@@ -58,27 +59,7 @@ export default function ChatTutor() {
 
     setIsLoading(true);
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error('Missing API Key. Please add VITE_GEMINI_API_KEY to your environment variables.');
-
-      const systemPrompt = `You are an expert AI study buddy. You are currently helping a ${studentContext.semester} student at ${studentContext.university}. Their teacher is ${studentContext.teacher} and they are studying ${studentContext.subject}. Keep answers concise, encouraging, and highly relevant to this context.`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: { text: systemPrompt } },
-            contents: [{ role: 'user', parts: [{ text: userText }] }]
-          })
-        }
-      );
-
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!aiText) throw new Error('The AI returned an empty response.');
+      const aiText = await askStudyCoach([...messages, { role: 'user', text: userText }], studentContext);
       setMessages((prev) => [...prev, { role: 'assistant', text: aiText }]);
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'assistant', text: `⚠️ Error: ${error.message}` }]);

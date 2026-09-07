@@ -39,7 +39,7 @@ function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/signup" element={<StudyCoachSignUp />} />
               <Route path="/login" element={<StudyCoachSignIn />} />
-              <Route path="/questainaire" element={<Questionaire />} />
+              <Route path="/questainaire" element={<ProtectedRoute requireOnboarding={false} onboardingOnly><Questionaire /></ProtectedRoute>} />
 
               {/* Authenticated routes with shared layout */}
               <Route

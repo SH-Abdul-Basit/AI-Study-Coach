@@ -1,21 +1,15 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/dashboard.css";
 
 import { useStudy } from "../context/StudyContext";
 import { useAuth } from "../context/AuthContext";
-
-import {
-  mockUser,
-  mockTopicMastery,
-  mockTodayPlan,
-  mockProgressStats,
-} from "../data/mockData";
+import { getUserCourses, getStudyPlan, getQuizHistory, getLocalDateString } from "../firebase/firestore";
+import { askStudyCoach } from "../services/gemini";
 
 import QuickActionsCard from "../components/common/QuickActions";
 
 import {
-  Play,
   ArrowRight,
   BrainCircuit,
   BookOpen,
@@ -25,7 +19,6 @@ import {
   TrendingUp,
   Calendar,
   FileText,
-  PlayCircle,
   X,
   Target,
   Bot,
@@ -37,7 +30,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   ChevronRight,
-  FileDown,
   Code2,
 } from "lucide-react";
 
@@ -52,29 +44,27 @@ import {
 } from "recharts";
 
 /* ===================== WEEKLY PROGRESS ===================== */
-const weeklyProgress = [
-  { day: "Mon", progress: 25 },
-  { day: "Tue", progress: 36 },
-  { day: "Wed", progress: 50 },
-  { day: "Thu", progress: 61 },
-  { day: "Fri", progress: 72 },
-  { day: "Sat", progress: 73 },
-  { day: "Sun", progress: 87 },
-];
+const minutesFromDuration = (duration = "") => {
+  const match = String(duration).match(/(\d+)\s*(?:min|minute)/i);
+  return match ? Number(match[1]) : 0;
+};
 
-/* ===================== UPCOMING DEADLINES ===================== */
-const upcomingDeadlines = [
-  { title: "OOP Assignment", date: "20 May, 2025", days: "5 days left", tone: "danger", icon: FileText },
-  { title: "Discrete Math Quiz", date: "22 May, 2025", days: "7 days left", tone: "warning", icon: FileText },
-  { title: "DSA Practice Test", date: "25 May, 2025", days: "10 days left", tone: "success", icon: PlayCircle },
-];
+const formatMinutes = (minutes) =>
+  minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
 
-/* ===================== RECOMMENDATIONS ===================== */
-const recommendations = [
-  { title: "C++ Full Course", subtitle: "Urdu/Hindi", meta: "YouTube · 4.5h", icon: Play, tone: "rec-purple" },
-  { title: "Data Structures Notes", subtitle: "(PDF)", meta: "PDF · 120 Pages", icon: FileDown, tone: "rec-red" },
-  { title: "DSA Practice Set", subtitle: "100 Questions", meta: "Practice", icon: Code2, tone: "rec-green" },
-];
+const buildWeeklyProgress = (quizzes) => {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    const dateKey = getLocalDateString(date);
+    const scores = quizzes.filter((quiz) => (quiz.date || quiz.completedAt?.slice(0, 10)) === dateKey);
+    const progress = scores.length
+      ? Math.round(scores.reduce((total, quiz) => total + Number(quiz.percentage ?? quiz.score ?? 0), 0) / scores.length)
+      : null;
+    return { day: date.toLocaleDateString("en-US", { weekday: "short" }), progress };
+  });
+  return days;
+};
 
 /* ===================== DASHBOARD ===================== */
 export default function Dashboard() {
@@ -83,60 +73,97 @@ export default function Dashboard() {
 
   const [bannerVisible, setBannerVisible] = useState(true);
   const [message, setMessage] = useState("");
+  const [courses, setCourses] = useState([]);
+  const [studyPlanDays, setStudyPlanDays] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
 
-  const [chatMessages, setChatMessages] = useState([
-    {
-      type: "user",
-      text: "Explain the difference between call by value and call by reference in simple words.",
-      time: "10:30 AM",
-    },
-    {
-      type: "assistant",
-      text:
-        "Sure! In call by value, a copy of the argument is passed to the function. Changes made inside the function don't affect the original value.\n\nIn call by reference, the address of the original value is passed. So changes made inside the function affect the original value.",
-      time: "10:30 AM",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   const { user, userProfile } = useAuth();
-  const completedTasks = mockTodayPlan?.filter((task) => task.status === "completed").length || 0;
-  const totalTasks = mockTodayPlan?.length || 0;
-  const userName = userProfile?.name || userProfile?.fullName || user?.displayName || mockUser?.name || "Ali";
-  const firstName = userName.split(" ")[0];
 
-  const sendMessage = () => {
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user?.uid) return;
+      try {
+        const [c, p, q] = await Promise.all([
+          getUserCourses(user.uid),
+          getStudyPlan(user.uid),
+          getQuizHistory(user.uid),
+        ]);
+        if (c && c.length > 0) setCourses(c);
+        if (p && p.length > 0) setStudyPlanDays(p);
+        if (q && q.length > 0) setQuizzes(q);
+      } catch (err) {
+        console.error("Error loading dashboard data:", err);
+      }
+    }
+    loadDashboardData();
+  }, [user]);
+
+  const todayDay = studyPlanDays.find((day) => day.date === getLocalDateString()) || studyPlanDays.find((day) => day.status === "today");
+  const todayTasks = todayDay?.tasks?.slice(0, 3) || [];
+  const completedTasks = todayDay?.tasks?.filter((task) => task.status === "completed").length || 0;
+  const totalTasks = todayDay?.tasks?.length || todayTasks.length;
+  const studyMinutesToday = todayDay?.tasks
+    ?.filter((task) => task.status === "completed")
+    .reduce((total, task) => total + minutesFromDuration(task.duration), 0) || 0;
+  const dailyGoalMinutes = userProfile?.dailyGoalMinutes || 120;
+  const dailyGoalProgress = Math.min(100, Math.round((studyMinutesToday / dailyGoalMinutes) * 100));
+  const weeklyProgress = buildWeeklyProgress(quizzes);
+
+  const displayName = userProfile?.fullName || userProfile?.name || user?.displayName || "Student";
+  const firstName = displayName.split(" ")[0] || "Student";
+
+  const subjects = courses.length > 0
+    ? courses.slice(0, 4).map((c) => ({
+        id: c.id,
+        name: c.name,
+        mastery: c.progress || 0,
+      }))
+    : [];
+
+  const dynamicDeadlines = courses.length > 0 && courses.some((c) => c.examDate)
+    ? courses
+        .filter((c) => c.examDate)
+        .slice(0, 3)
+        .map((c) => ({
+          title: `${c.name} ${c.examType || "Exam"}`,
+          date: c.examDate,
+          days: `${c.daysUntilExam || 30} days left`,
+          tone: (c.daysUntilExam || 30) <= 15 ? "danger" : "warning",
+          icon: FileText,
+        }))
+    : [];
+
+  const avgQuizScore = quizzes.length > 0
+    ? Math.round(
+        quizzes.reduce((acc, q) => acc + (q.percentage ?? q.score ?? 0), 0) / quizzes.length
+      )
+    : null;
+
+  const sendMessage = async () => {
     const text = message.trim();
-    if (!text) return;
+    if (!text || chatLoading) return;
 
-    setChatMessages((previous) => [...previous, { type: "user", text, time: "Just now" }]);
+    const userMessage = { type: "user", role: "user", text, time: "Just now" };
+    const nextMessages = [...chatMessages, userMessage];
+    setChatMessages(nextMessages);
     setMessage("");
-
-    setTimeout(() => {
-      setChatMessages((previous) => [
-        ...previous,
-        {
-          type: "assistant",
-          text: "I can help you understand that step by step. Ask me about any concept, formula, or practice question.",
-          time: "Just now",
-        },
-      ]);
-    }, 600);
+    setChatLoading(true);
+    try {
+      const response = await askStudyCoach(nextMessages, {
+        university: userProfile?.university,
+        semester: userProfile?.semester,
+        subject: userProfile?.onboardingData?.subject,
+      });
+      setChatMessages((previous) => [...previous, { type: "assistant", role: "assistant", text: response, time: "Just now" }]);
+    } catch (error) {
+      setChatMessages((previous) => [...previous, { type: "assistant", role: "assistant", text: `I couldn't respond: ${error.message}`, time: "Just now" }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
-
-  const fallbackTasks = [
-    { id: 1, topic: "Variables in C++", type: "Review notes", duration: "20 min", status: "completed" },
-    { id: 2, topic: "Functions & Parameters", type: "Practice 10 questions", duration: "30 min", status: "in-progress" },
-    { id: 3, topic: "Loops (For, While, Do While)", type: "Mini quiz", duration: "20 min", status: "pending" },
-  ];
-  const todayTasks = mockTodayPlan?.length > 0 ? mockTodayPlan.slice(0, 3) : fallbackTasks;
-
-  const fallbackSubjects = [
-    { id: 1, name: "Data Structures", mastery: 75 },
-    { id: 2, name: "Object Oriented Programming", mastery: 60 },
-    { id: 3, name: "Discrete Mathematics", mastery: 40 },
-    { id: 4, name: "Calculus & Analytical Geometry", mastery: 30 },
-  ];
-  const subjects = mockTopicMastery?.length > 0 ? mockTopicMastery.slice(0, 4) : fallbackSubjects;
 
   return (
     // NOTE: no dashboard-shell/sidebar/header here — AppLayout already renders those.
@@ -189,9 +216,14 @@ export default function Dashboard() {
             <div className="stat-icon"><Clock size={18} /></div>
             <div className="stat-content">
               <div className="stat-heading">Study Time Today</div>
-              <div className="stat-value">2h 40m</div>
-              <div className="stat-meta"><span>Goal: 4h 00m</span><strong>67%</strong></div>
-              <div className="thin-track"><span style={{ width: "67%" }} /></div>
+              <div className="stat-value">{formatMinutes(studyMinutesToday)}</div>
+              <div className="stat-meta">
+                <span>Goal: {formatMinutes(dailyGoalMinutes)}</span>
+                <strong>{dailyGoalProgress}%</strong>
+              </div>
+              <div className="thin-track">
+                <span style={{ width: `${dailyGoalProgress}%` }} />
+              </div>
             </div>
           </div>
 
@@ -200,15 +232,15 @@ export default function Dashboard() {
             <div className="stat-content">
               <div className="stat-heading">Tasks Completed</div>
               <div className="stat-value">
-                {completedTasks || 7}
-                <span className="stat-suffix">/ {totalTasks || 12}</span>
+                {completedTasks}
+                <span className="stat-suffix">/ {totalTasks}</span>
               </div>
               <div className="stat-meta">
-                <span>Almost there!</span>
-                <strong>{totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 58}%</strong>
+                <span>{completedTasks === totalTasks && totalTasks > 0 ? "Goal reached!" : "Almost there!"}</span>
+                <strong>{totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0}%</strong>
               </div>
               <div className="thin-track">
-                <span style={{ width: `${totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 58}%` }} />
+                <span style={{ width: `${totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0}%` }} />
               </div>
             </div>
           </div>
@@ -217,8 +249,8 @@ export default function Dashboard() {
             <div className="stat-icon"><TrendingUp size={18} /></div>
             <div className="stat-content">
               <div className="stat-heading">Quizzes Score</div>
-              <div className="stat-value">82%</div>
-              <div className="stat-growth">Top 18% this week <span>⌃</span></div>
+              <div className="stat-value">{avgQuizScore === null ? "—" : `${avgQuizScore}%`}</div>
+              <div className="stat-growth">{quizzes.length ? "Based on your quiz history" : "Complete a quiz to see your score"}</div>
             </div>
           </div>
         </div>
@@ -229,13 +261,15 @@ export default function Dashboard() {
             <div className="card-header compact">
               <h2>Today's Study Plan</h2>
               <button className="date-control">
-                <span>15 May, 2025</span>
+                <span>{new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}</span>
                 <Calendar size={15} />
               </button>
             </div>
 
             <div className="study-rows">
-              {todayTasks.map((task, index) => {
+              {todayTasks.length === 0 ? (
+                <p className="empty-dashboard-state">No study tasks scheduled for today.</p>
+              ) : todayTasks.map((task, index) => {
                 const status =
                   task.status === "completed" ? "completed" : task.status === "in-progress" ? "in-progress" : "pending";
                 return (
@@ -279,7 +313,9 @@ export default function Dashboard() {
             </div>
 
             <div className="subject-list">
-              {subjects.map((subject, index) => {
+              {subjects.length === 0 ? (
+                <p className="empty-dashboard-state">Add a course to start tracking your progress.</p>
+              ) : subjects.map((subject, index) => {
                 const mastery = subject.mastery ?? subject.progress ?? 0;
                 return (
                   <div className="subject-row" key={subject.id || index}>
@@ -348,20 +384,7 @@ export default function Dashboard() {
               <h2>Recommended for You</h2>
               <button onClick={() => navigate("/materials")}>View All</button>
             </div>
-
-            <div className="rec-grid">
-              {recommendations.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <button className="recommend-card" key={index} onClick={() => navigate("/materials")}>
-                    <div className={`recommend-icon ${item.tone}`}><Icon size={14} /></div>
-                    <h3>{item.title}</h3>
-                    <p>{item.subtitle}</p>
-                    <p>{item.meta}</p>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="empty-dashboard-state">Upload study materials to receive recommendations.</p>
           </div>
         </div>
       </div>
@@ -382,6 +405,9 @@ export default function Dashboard() {
           </div>
 
           <div className="ai-messages">
+            {chatMessages.length === 0 && (
+              <p className="empty-dashboard-state">Ask a question to start a real conversation with your coach.</p>
+            )}
             {chatMessages.map((chat, index) => (
               <div className={`chat-row ${chat.type}`} key={index}>
                 {chat.type === "assistant" && (
@@ -421,7 +447,7 @@ export default function Dashboard() {
               />
               <button type="button" aria-label="Attach"><Paperclip size={15} /></button>
               <button type="button" aria-label="Voice"><Mic size={15} /></button>
-              <button type="button" className="send-btn" onClick={sendMessage} aria-label="Send"><Send size={15} /></button>
+              <button type="button" className="send-btn" onClick={sendMessage} disabled={chatLoading} aria-label="Send"><Send size={15} /></button>
             </div>
           </div>
         </div>
@@ -433,7 +459,8 @@ export default function Dashboard() {
           </div>
 
           <div className="deadline-list">
-            {upcomingDeadlines.map((deadline, index) => {
+            {dynamicDeadlines.length === 0 && <p className="empty-dashboard-state">No upcoming deadlines yet.</p>}
+            {dynamicDeadlines.map((deadline, index) => {
               const Icon = deadline.icon;
               return (
                 <div className="deadline-row" key={deadline.title}>

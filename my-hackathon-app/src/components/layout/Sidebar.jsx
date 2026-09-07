@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  Home, CalendarDays, BookOpen, FileText,
+  Home, CalendarDays, BookOpen,
   Brain, TrendingUp, FolderOpen, Settings,
-  MessageSquare, Flame, Star, GraduationCap, Menu, Archive
+  MessageSquare, Flame, Star, GraduationCap, Archive
 } from 'lucide-react';
 import { useStudy } from '../../context/StudyContext';
+import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { icon: Home, label: 'Dashboard', to: '/dashboard' },
@@ -21,6 +22,18 @@ const navItems = [
 
 export default function Sidebar() {
   const { sidebarOpen, closeSidebar } = useStudy();
+  const { userProfile } = useAuth();
+
+  const streak = userProfile?.currentStreak ?? 1;
+  const weeklyDays = userProfile?.weeklyActivity || [
+    { short: 'M', active: true },
+    { short: 'T', active: false },
+    { short: 'W', active: false },
+    { short: 'T', active: false },
+    { short: 'F', active: false },
+    { short: 'S', active: false },
+    { short: 'S', active: false },
+  ];
 
   return (
     <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
@@ -48,11 +61,21 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <section className="streak-card">
-          <div className="streak-title"><Flame size={17} fill="currentColor" /> <strong>7</strong> <span>Day Streak</span></div>
-          <p>Keep it up! 🔥</p>
+          <div className="streak-title">
+            <Flame size={17} fill="currentColor" />
+            <strong>{streak}</strong>
+            <span>Day Streak</span>
+          </div>
+          <p>{streak > 1 ? `${streak} days strong! Keep going! 🔥` : "Study today to keep your streak! 🔥"}</p>
           <div className="days">
-            {['M','T','W','T','F','S','S'].map((day, i) => (
-              <span key={`${day}-${i}`} className={i < 5 ? 'done' : ''}>{day}</span>
+            {weeklyDays.map((d, i) => (
+              <span
+                key={`${d.short || d.day || 'd'}-${i}`}
+                className={d.active ? 'done' : ''}
+                style={d.isToday ? { outline: '2px solid #6347F5', outlineOffset: '1px' } : {}}
+              >
+                {d.short || (d.day ? d.day[0] : '•')}
+              </span>
             ))}
           </div>
         </section>

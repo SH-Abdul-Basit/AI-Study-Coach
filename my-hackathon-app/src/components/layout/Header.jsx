@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, ChevronDown, Menu, LogOut, Settings } from 'lucide-react';
-import { mockUser } from '../../data/mockData';
 import { useStudy } from '../../context/StudyContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,10 +10,13 @@ export default function Header() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const displayName = userProfile?.fullName || user?.displayName || mockUser.fullName;
-  const firstName = displayName.split(" ")[0];
-  const avatarUrl = userProfile?.avatarUrl || user?.photoURL || mockUser.avatarUrl;
-  const semester = userProfile?.semester || mockUser.semester;
+  const displayName = userProfile?.fullName || userProfile?.name || user?.displayName || "Student";
+  const firstName = displayName.split(" ")[0] || "Student";
+  const avatarUrl =
+    userProfile?.avatarUrl ||
+    user?.photoURL ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=6347f5`;
+  const semester = userProfile?.semester || (userProfile?.onboardingCompleted ? "Active Student" : "New Student");
 
   const handleLogout = async () => {
     await logout();
